@@ -1,6 +1,3 @@
 {
-  "buildCommand": "cd 'Rang De App' && npm install && npm run build",
-  "outputDirectory": "Rang De App/.next",
-  "installCommand": "cd 'Rang De App' && npm install",
   "framework": "nextjs"
 }
