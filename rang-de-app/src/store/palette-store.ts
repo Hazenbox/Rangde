@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { Step, PaletteSteps, StepScales } from "@/lib/color-utils";
 import { generateAllScales, createDefaultPalette } from "@/lib/scale-generator";
+import { loadPalettesFromJSON } from "@/lib/palette-loader";
 
 // Safe storage adapter that handles SSR
 const safeStorage = {
@@ -67,7 +68,12 @@ function generateId(): string {
   return `palette_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Default Indigo sample palette
+// Load default palettes from JSON file
+const DEFAULT_PALETTES = typeof window !== "undefined" 
+  ? loadPalettesFromJSON()
+  : [];
+
+// Fallback Indigo palette if JSON loading fails or on server
 const INDIGO_SAMPLE_PALETTE: Palette = {
   id: "sample_indigo_v2",
   name: "Sample - Indigo",
@@ -101,16 +107,26 @@ const INDIGO_SAMPLE_PALETTE: Palette = {
   createdAt: 0,
 };
 
+// Use loaded palettes or fallback to Indigo
+const INITIAL_PALETTES = DEFAULT_PALETTES.length > 0 
+  ? DEFAULT_PALETTES 
+  : [INDIGO_SAMPLE_PALETTE];
+
+const INITIAL_ACTIVE_PALETTE_ID = INITIAL_PALETTES[0]?.id || INDIGO_SAMPLE_PALETTE.id;
+
 export const usePaletteStore = create<PaletteState>()(
   persist(
-    (set, get) => ({
-      palettes: [INDIGO_SAMPLE_PALETTE],
-      activePaletteId: INDIGO_SAMPLE_PALETTE.id,
-      generatedScales: typeof window !== "undefined" 
-        ? generateAllScales(INDIGO_SAMPLE_PALETTE.steps, INDIGO_SAMPLE_PALETTE.primaryStep)
-        : null,
-      viewMode: "palette" as ViewMode,
-      isFullscreen: false,
+    (set, get) => {
+      const initialPalette = INITIAL_PALETTES.find(p => p.id === INITIAL_ACTIVE_PALETTE_ID) || INITIAL_PALETTES[0];
+      
+      return {
+        palettes: INITIAL_PALETTES,
+        activePaletteId: INITIAL_ACTIVE_PALETTE_ID,
+        generatedScales: typeof window !== "undefined" && initialPalette
+          ? generateAllScales(initialPalette.steps, initialPalette.primaryStep)
+          : null,
+        viewMode: "palette" as ViewMode,
+        isFullscreen: false,
 
       createPalette: (name: string) => {
         const newPalette: Palette = {
@@ -225,7 +241,8 @@ export const usePaletteStore = create<PaletteState>()(
       toggleFullscreen: () => {
         set((state) => ({ isFullscreen: !state.isFullscreen }));
       }
-    }),
+    };
+    },
     {
       name: "rangule-palettes",
       storage: createJSONStorage(() => safeStorage),
@@ -233,12 +250,12 @@ export const usePaletteStore = create<PaletteState>()(
         palettes: state.palettes,
         activePaletteId: state.activePaletteId
       }),
-      // Merge function to ensure sample palette exists for existing users
+      // Merge function to ensure default palettes exist for existing users
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<PaletteState>;
         let palettes = persisted.palettes || [];
         
-        // Remove old sample palettes and add the fresh one
+        // Remove old sample palettes
         const oldSampleIds = ["sample_indigo", "sample_indigo_v2"];
         palettes = palettes.filter(p => !oldSampleIds.includes(p.id));
         
@@ -248,12 +265,19 @@ export const usePaletteStore = create<PaletteState>()(
           primaryStep: p.primaryStep || 600
         }));
         
-        const mergedPalettes = [INDIGO_SAMPLE_PALETTE, ...palettes];
+        // Get default palette names from loaded palettes
+        const defaultPaletteNames = new Set(INITIAL_PALETTES.map(p => p.name));
         
-        // Set active palette - use persisted if valid, otherwise use sample
+        // Filter out any persisted palettes that match default names (to avoid duplicates)
+        const userCreatedPalettes = palettes.filter(p => !defaultPaletteNames.has(p.name));
+        
+        // Merge: default palettes first, then user-created palettes
+        const mergedPalettes = [...INITIAL_PALETTES, ...userCreatedPalettes];
+        
+        // Set active palette - use persisted if valid, otherwise use first default
         const activePaletteId = persisted.activePaletteId && mergedPalettes.some(p => p.id === persisted.activePaletteId)
           ? persisted.activePaletteId
-          : INDIGO_SAMPLE_PALETTE.id;
+          : INITIAL_ACTIVE_PALETTE_ID;
         
         const activePalette = mergedPalettes.find(p => p.id === activePaletteId);
         

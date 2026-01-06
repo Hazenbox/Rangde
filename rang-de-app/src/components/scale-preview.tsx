@@ -179,7 +179,7 @@ const SCALE_LABELS = [
   { 
     key: "boldA11Y" as const, 
     label: "Bold A11Y",
-    description: "Base value. If contrast < 4.5:1 against surface, finds the next color step with contrast >= 4.5:1 (WCAG AA)."
+    description: "Starts from the user-selected base step. Checks if contrast >= 4.5:1. If not, moves toward contrasting color step by step until finding >= 4.5:1 contrast (WCAG AA)."
   },
   { 
     key: "minimal" as const, 

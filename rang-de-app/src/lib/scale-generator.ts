@@ -191,85 +191,62 @@ function generateBold(
 
 /**
  * Generate BoldA11Y scale
- * Base value. If contrast < 4.5:1, find next step with contrast >= 4.5:1
- * MUST always achieve >= 4.5:1 contrast
+ * 
+ * Starts from the user-selected base step (primaryStep).
+ * Checks if contrast ratio against surface is >= 4.5:1.
+ * If contrast fails, moves toward the contrasting color step by step.
+ * Continues until finding a step with >= 4.5:1 contrast.
  */
 function generateBoldA11Y(
   surfaceStep: Step,
   surfaceHex: string,
   palette: PaletteSteps,
-  contrastDir: 'dark' | 'light'
+  contrastDir: 'dark' | 'light',
+  primaryStep: Step
 ): ScaleResult {
-  const surfaceIndex = getStepIndex(surfaceStep);
-  let currentIndex = surfaceIndex;
-  // Dark CC = move toward step 200 (lower indices), Light CC = move toward step 2500 (higher indices)
+  // Step 200 = darkest (dark CC), Step 2500 = lightest (light CC)
+  const ccStep: Step = contrastDir === 'dark' ? 200 : 2500;
+  
+  // Start from the base (primary) step
+  const primaryIndex = getStepIndex(primaryStep);
+  let currentIndex = primaryIndex;
+  
+  // Direction to move: toward CC
+  // Dark CC (light surface) = move toward step 200 (lower indices)
+  // Light CC (dark surface) = move toward step 2500 (higher indices)
   const direction = contrastDir === 'dark' ? -1 : 1;
   
-  let bestStep: Step = surfaceStep;
-  let bestHex = palette[surfaceStep];
-  let bestContrast = 0;
-  
+  // Walk from base step toward CC until contrast >= 4.5:1
   while (currentIndex >= 0 && currentIndex < STEPS.length) {
     const step = getStepFromIndex(currentIndex);
     if (step === undefined) break;
     
     const hex = palette[step];
-    if (!hex || !isValidHex(hex)) {
-      currentIndex += direction;
-      continue;
-    }
-    
-    const contrast = getContrastRatio(hex, surfaceHex);
-    
-    // Track best contrast found
-    if (contrast > bestContrast) {
-      bestContrast = contrast;
-      bestStep = step;
-      bestHex = hex;
-    }
-    
-    if (contrast >= 4.5) {
-      return createScaleResult(hex, surfaceHex, undefined, step);
+    if (hex && isValidHex(hex)) {
+      const contrast = getContrastRatio(hex, surfaceHex);
+      if (contrast >= 4.5) {
+        return createScaleResult(hex, surfaceHex, undefined, step);
+      }
     }
     
     currentIndex += direction;
   }
   
-  // Fallback: Check contrasting color
-  // Step 200 = darkest, Step 2500 = lightest
-  const fallbackStep: Step = contrastDir === 'dark' ? 200 : 2500;
-  const fallbackHex = palette[fallbackStep];
-  if (fallbackHex && isValidHex(fallbackHex)) {
-    const fallbackContrast = getContrastRatio(fallbackHex, surfaceHex);
-    if (fallbackContrast >= 4.5) {
-      return createScaleResult(fallbackHex, surfaceHex, undefined, fallbackStep);
-    }
-    // Update best if fallback is better
-    if (fallbackContrast > bestContrast) {
-      bestContrast = fallbackContrast;
-      bestStep = fallbackStep;
-      bestHex = fallbackHex;
+  // Fallback: Check contrasting color directly
+  const ccHex = palette[ccStep];
+  if (ccHex && isValidHex(ccHex)) {
+    const ccContrast = getContrastRatio(ccHex, surfaceHex);
+    if (ccContrast >= 4.5) {
+      return createScaleResult(ccHex, surfaceHex, undefined, ccStep);
     }
   }
   
-  // Last resort: search ALL steps for any color with >= 4.5:1 contrast
-  for (const step of STEPS) {
-    const hex = palette[step];
-    if (!hex || !isValidHex(hex)) continue;
-    
-    const contrast = getContrastRatio(hex, surfaceHex);
-    if (contrast >= 4.5) {
-      return createScaleResult(hex, surfaceHex, undefined, step);
-    }
-    if (contrast > bestContrast) {
-      bestContrast = contrast;
-      bestStep = step;
-      bestHex = hex;
-    }
-  }
-  
-  // Return best found (even if < 4.5, it's the best we have)
-  return createScaleResult(bestHex, surfaceHex, undefined, bestStep);
+  // Last resort: Use alpha blending to guarantee 4.5:1 contrast
+  const pureContrastingColor = contrastDir === 'dark' ? '#000000' : '#ffffff';
+  const alpha = findAlphaForContrast(pureContrastingColor, surfaceHex, 4.5);
+  const blendedHex = blendWithAlpha(pureContrastingColor, surfaceHex, alpha);
+  const rgbaDisplay = hexToRgba(pureContrastingColor, alpha);
+  return createScaleResult(rgbaDisplay, surfaceHex, alpha, ccStep, blendedHex);
 }
 
 /**
@@ -434,7 +411,7 @@ export function generateScalesForStep(
   
   // Generate Bold and BoldA11Y for Heavy calculation
   const bold = generateBold(surfaceStep, surfaceHex, tempPalette, contrastDir, primaryStep);
-  const boldA11Y = generateBoldA11Y(surfaceStep, surfaceHex, tempPalette, contrastDir);
+  const boldA11Y = generateBoldA11Y(surfaceStep, surfaceHex, tempPalette, contrastDir, primaryStep);
   
   return {
     surface: createScaleResult(surfaceHex, surfaceHex, undefined, surfaceStep),

@@ -68,13 +68,14 @@ const SCALE_DATA = [
     name: "Bold A11Y",
     contrastTarget: "≥ 4.5:1",
     logic: [
-      "Starts from the surface step position",
-      "Moves toward the contrasting color until ≥ 4.5:1 contrast is achieved",
+      "Starts from the user-selected base step (e.g., 600)",
+      "Checks if contrast ratio against surface is ≥ 4.5:1",
+      "If contrast fails, moves toward the contrasting color step by step",
+      "Continues until finding a step with ≥ 4.5:1 contrast",
       "Ensures WCAG AA compliance for normal text",
-      "Falls back to searching all steps if needed",
     ],
-    exampleLight: "Surface 2400 → checks 2400, 2300, 2200... → step 1200 passes (4.79:1)",
-    exampleDark: "Surface 200 → checks 200, 300, 400... → step 1200 passes (4.79:1)",
+    exampleLight: "Base 600, Surface 2400 → 600 fails (2.1:1) → 500, 400, 300... → step 200 passes (4.5:1)",
+    exampleDark: "Base 600, Surface 200 → 600 fails (1.67:1) → 700, 800, 900... → step 1200 passes (4.79:1)",
   },
   {
     name: "Heavy",
@@ -304,7 +305,7 @@ export function HowItWorks() {
                   <li>• Contrast vs white &lt; 4.5:1</li>
                   <li>• Contrasting color: Dark (step 200)</li>
                   <li>• Bold: Base step → move toward 200 until ≥ 3.0:1</li>
-                  <li>• BoldA11Y: Surface → move toward 200 until ≥ 4.5:1</li>
+                  <li>• BoldA11Y: Base step → move toward 200 until ≥ 4.5:1</li>
                   <li>• Heavy: Midpoint(Bold, 200), capped at 800</li>
                   <li>• Minimal: Surface - 200 (e.g., 2400 → 2200)</li>
                 </ul>
@@ -315,7 +316,7 @@ export function HowItWorks() {
                   <li>• Contrast vs white ≥ 4.5:1</li>
                   <li>• Contrasting color: Light (step 2500)</li>
                   <li>• Bold: Base step → move toward 2500 until ≥ 3.0:1</li>
-                  <li>• BoldA11Y: Surface → move toward 2500 until ≥ 4.5:1</li>
+                  <li>• BoldA11Y: Base step → move toward 2500 until ≥ 4.5:1</li>
                   <li>• Heavy: Same as BoldA11Y (or 2500 if &gt;3 steps away)</li>
                   <li>• Minimal: Surface + 200 (e.g., 400 → 600)</li>
                 </ul>

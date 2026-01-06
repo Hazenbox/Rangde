@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, MoreHorizontal, ChevronRight, HelpCircle } from "lucide-react";
+import { Plus, MoreHorizontal, ChevronRight, HelpCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -352,6 +352,7 @@ export function ColorSidebar() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editingName, setEditingName] = React.useState("");
+  const [searchQuery, setSearchQuery] = React.useState("");
 
   const handleCreate = () => {
     if (newPaletteName.trim()) {
@@ -373,6 +374,11 @@ export function ColorSidebar() {
     setEditingId(id);
     setEditingName(name);
   };
+
+  // Filter palettes based on search query
+  const filteredPalettes = palettes.filter((p) =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="flex h-full w-56 flex-col bg-sidebar-background relative z-10">
@@ -435,6 +441,20 @@ export function ColorSidebar() {
         </Dialog>
       </div>
 
+      {/* Search Bar */}
+      <div className="px-2 py-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-8 px-3 pl-8 text-sm"
+          />
+        </div>
+      </div>
+
       <ScrollArea className="flex-1">
         <div className="px-2 py-1">
           {palettes.length === 0 ? (
@@ -442,9 +462,14 @@ export function ColorSidebar() {
               <p className="text-xs">No palettes yet</p>
               <p className="text-[10px]">Click + to create one</p>
             </div>
+          ) : filteredPalettes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center text-sm text-muted-foreground">
+              <p className="text-xs">No palettes found</p>
+              <p className="text-[10px]">Try a different search term</p>
+            </div>
           ) : (
             <div className="space-y-0.5">
-              {palettes.map((palette) => (
+              {filteredPalettes.map((palette) => (
                 <PaletteItem
                   key={palette.id}
                   palette={palette}

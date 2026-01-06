@@ -254,3 +254,78 @@ export function hexToRgba(hex: string, alpha: number): string {
 export function getReadableTextColor(bgHex: string): string {
   return colord(bgHex).isLight() ? "#000000" : "#ffffff";
 }
+
+/**
+ * Convert oklch color string to hex
+ * Supports format: oklch(L% C H) or oklch(L% C H / alpha)
+ * Example: oklch(16.01% 0.0209 58.51)
+ * 
+ * Manual conversion since colord doesn't support oklch:
+ * OKLCH -> OKLab -> Linear RGB -> sRGB -> Hex
+ */
+export function oklchToHex(oklchString: string): string {
+  try {
+    // Parse oklch string: oklch(L% C H) or oklch(L% C H / alpha)
+    const match = oklchString.match(/oklch\(([^)]+)\)/);
+    if (!match) {
+      return "#000000";
+    }
+
+    const parts = match[1].split(/\s+/).filter(p => p.trim());
+    if (parts.length < 3) {
+      return "#000000";
+    }
+
+    // Extract L, C, H values
+    const L = parseFloat(parts[0].replace('%', '')) / 100; // Convert % to 0-1
+    const C = parseFloat(parts[1]);
+    const H = parseFloat(parts[2]) * Math.PI / 180; // Convert degrees to radians
+
+    // Convert OKLCH to OKLab
+    const a = C * Math.cos(H);
+    const b = C * Math.sin(H);
+
+    // Convert OKLab to linear RGB using OKLab to linear sRGB matrix
+    // Matrix from: https://bottosson.github.io/posts/oklab/
+    const l = L + 0.3963377774 * a + 0.2158037573 * b;
+    const m = L - 0.1055613458 * a - 0.0638541728 * b;
+    const s = L - 0.0894841775 * a - 1.2914855480 * b;
+
+    const l_3 = l * l * l;
+    const m_3 = m * m * m;
+    const s_3 = s * s * s;
+
+    // Linear RGB
+    const r_linear = +4.0767416621 * l_3 - 3.3077115913 * m_3 + 0.2309699292 * s_3;
+    const g_linear = -1.2684380046 * l_3 + 2.6097574011 * m_3 - 0.3413193965 * s_3;
+    const b_linear = -0.0041960863 * l_3 - 0.7034186147 * m_3 + 1.7076147010 * s_3;
+
+    // Apply gamma correction (sRGB transfer function)
+    const gammaCorrect = (c: number): number => {
+      if (c >= 0.0031308) {
+        return 1.055 * Math.pow(c, 1.0 / 2.4) - 0.055;
+      }
+      return 12.92 * c;
+    };
+
+    let r = gammaCorrect(r_linear);
+    let g = gammaCorrect(g_linear);
+    let bl = gammaCorrect(b_linear);
+
+    // Clamp to [0, 1]
+    r = Math.max(0, Math.min(1, r));
+    g = Math.max(0, Math.min(1, g));
+    bl = Math.max(0, Math.min(1, bl));
+
+    // Convert to 0-255 range and then to hex
+    const r255 = Math.round(r * 255);
+    const g255 = Math.round(g * 255);
+    const b255 = Math.round(bl * 255);
+
+    const hex = `#${r255.toString(16).padStart(2, '0')}${g255.toString(16).padStart(2, '0')}${b255.toString(16).padStart(2, '0')}`;
+
+    return hex;
+  } catch (error) {
+    return "#000000";
+  }
+}
