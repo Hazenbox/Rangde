@@ -159,7 +159,7 @@ function PaletteItem({
   return (
     <div
       className={cn(
-        "group flex h-8 items-center justify-between rounded-lg px-3 text-sm transition-colors cursor-pointer",
+        "group flex h-8 items-center justify-between rounded-lg pl-3 pr-1 text-sm transition-colors cursor-pointer",
         isActive
           ? "bg-sidebar-accent text-sidebar-accent-foreground"
           : "hover:bg-sidebar-accent/50"
@@ -189,7 +189,10 @@ function PaletteItem({
           <Button
             variant="ghost"
             size="icon"
-            className="h-5 w-5 opacity-0 group-hover:opacity-100 cursor-pointer"
+            className={cn(
+              "h-5 w-5 rounded-full cursor-pointer transition-opacity",
+              menuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            )}
             onClick={(e) => {
               e.stopPropagation();
               setMenuOpen(true);
