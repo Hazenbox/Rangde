@@ -17,12 +17,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Rang De - Color Scale Generator",
   description: "Design system color generation tool with WCAG accessibility compliance",
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-    ],
-    apple: "/favicon.ico",
-  },
 };
 
 export default function RootLayout({
