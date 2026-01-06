@@ -1,7 +1,35 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { Step, PaletteSteps, StepScales } from "@/lib/color-utils";
 import { generateAllScales, createDefaultPalette } from "@/lib/scale-generator";
+
+// Safe storage adapter that handles SSR
+const safeStorage = {
+  getItem: (name: string): string | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem(name);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name: string, value: string): void => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(name, value);
+    } catch {
+      // Ignore errors
+    }
+  },
+  removeItem: (name: string): void => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.removeItem(name);
+    } catch {
+      // Ignore errors
+    }
+  },
+};
 
 export type GeneratedScalesMap = Record<Step, StepScales | null>;
 
@@ -198,6 +226,7 @@ export const usePaletteStore = create<PaletteState>()(
     }),
     {
       name: "rangule-palettes",
+      storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({
         palettes: state.palettes,
         activePaletteId: state.activePaletteId
