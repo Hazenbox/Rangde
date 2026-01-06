@@ -25,7 +25,20 @@ export function ColorSwatch({ scale, label, showStep = false, compact = false, s
 
   const handleCopy = async () => {
     try {
+      // Use clipboard API if available (HTTPS), otherwise fallback to execCommand
+      if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(scale.hex);
+      } else {
+        // Fallback for HTTP contexts
+        const textArea = document.createElement("textarea");
+        textArea.value = scale.hex;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (err) {
@@ -105,7 +118,7 @@ export function ColorSwatch({ scale, label, showStep = false, compact = false, s
           <button
             onClick={handleCopy}
             className={cn(
-              "group relative flex w-full h-full items-center justify-center border shadow-sm transition-all hover:scale-[1.02] hover:shadow-md cursor-pointer rounded-md",
+              "group relative flex w-full h-full items-center justify-center border transition-all hover:scale-[1.02] cursor-pointer rounded-md",
             )}
             style={{ backgroundColor: bgColor }}
           >

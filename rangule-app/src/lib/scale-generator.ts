@@ -81,8 +81,8 @@ function generateLow(
     return createScaleResult(bestHex, surfaceHex, 1, bestStep, bestHex);
   }
   
-  // Find alpha to achieve exactly 4.5:1 contrast
-  const alpha = findAlphaForContrast(ccHex, surfaceHex, 4.5);
+  // Find the smallest alpha that achieves >= 4.5:1 contrast (never less)
+  const alpha = findAlphaForContrast(ccHex, surfaceHex, 4.5, true);
   const blendedHex = blendWithAlpha(ccHex, surfaceHex, alpha);
   
   // Store rgba for display, but keep blendedHex for contrast calculation
@@ -104,8 +104,9 @@ function generateMedium(
   const targetStep: Step = contrastDir === 'dark' ? 200 : 2500;
   const ccHex = palette[targetStep];
   
-  // Midpoint between 1.0 and Low's alpha
-  const alpha = (1.0 + lowAlpha) / 2;
+  // Midpoint between 1.0 (100%) and Low's alpha, using floor to round down
+  // Formula: alpha = (100 + Low_alpha_percent) / 2, then floor
+  const alpha = Math.floor(((1.0 + lowAlpha) / 2) * 100) / 100;
   const blendedHex = blendWithAlpha(ccHex, surfaceHex, alpha);
   
   // Store rgba for display, but keep blendedHex for contrast calculation
@@ -114,78 +115,75 @@ function generateMedium(
 }
 
 /**
- * Generate Bold scale
- * Base value. If contrast < 3.0:1, find next step with contrast >= 3.0:1
- * MUST always achieve >= 3.0:1 contrast (Large Text AA / Graphics AA)
+ * Get step offset for Bold based on surface step (dark mode only)
  * 
- * Strategy:
- * 1. Search palette for solid color with >= 3.0:1 contrast
- * 2. If none found, use alpha-blended contrasting color to guarantee 3.0:1
+ * Step offset rules:
+ * - 2500-1900: +0 steps
+ * - 1800-1300: +1 step
+ * - 1200-700:  +2 steps
+ * - 600-100:   +3 steps
+ */
+function getBoldStepOffset(surfaceStep: Step): number {
+  if (surfaceStep >= 1900) return 0;
+  if (surfaceStep >= 1300) return 1;
+  if (surfaceStep >= 700) return 2;
+  return 3;
+}
+
+/**
+ * Generate Bold scale
+ * 
+ * Start from the base step selected by the user.
+ * If contrast ratio is below 3.0:1, move toward the contrasting color.
+ * Continue stepping until contrast ratio is >= 3.0:1.
  */
 function generateBold(
   surfaceStep: Step,
   surfaceHex: string,
   palette: PaletteSteps,
-  contrastDir: 'dark' | 'light'
+  contrastDir: 'dark' | 'light',
+  primaryStep: Step
 ): ScaleResult {
-  const surfaceIndex = getStepIndex(surfaceStep);
-  // Step 200 = darkest, Step 2500 = lightest
+  // Step 200 = darkest (dark CC), Step 2500 = lightest (light CC)
   const ccStep: Step = contrastDir === 'dark' ? 200 : 2500;
   
-  // Bold compares a color against the surface to be used ON the surface
-  // Start with the base step and check if it has sufficient contrast
-  let currentIndex = surfaceIndex;
-  // Dark CC = move toward step 200 (lower indices), Light CC = move toward step 2500 (higher indices)
+  // Start from the base (primary) step
+  const primaryIndex = getStepIndex(primaryStep);
+  let currentIndex = primaryIndex;
+  
+  // Direction to move: toward CC
+  // Dark CC (light surface) = move toward step 200 (lower indices)
+  // Light CC (dark surface) = move toward step 2500 (higher indices)
   const direction = contrastDir === 'dark' ? -1 : 1;
   
-  // Step 1: Search for a solid palette color with >= 3.0:1 contrast
+  // Walk from base step toward CC until contrast >= 3.0:1
   while (currentIndex >= 0 && currentIndex < STEPS.length) {
     const step = getStepFromIndex(currentIndex);
     if (step === undefined) break;
     
     const hex = palette[step];
-    if (!hex || !isValidHex(hex)) {
-      currentIndex += direction;
-      continue;
-    }
-    
-    const contrast = getContrastRatio(hex, surfaceHex);
-    
-    // Use 3.05 threshold to account for floating-point precision
-    if (contrast >= 3.05) {
-      return createScaleResult(hex, surfaceHex, undefined, step);
+    if (hex && isValidHex(hex)) {
+      const contrast = getContrastRatio(hex, surfaceHex);
+      if (contrast >= 3.0) {
+        return createScaleResult(hex, surfaceHex, undefined, step);
+      }
     }
     
     currentIndex += direction;
   }
   
-  // Step 2: Check contrasting color directly
+  // Fallback: Check contrasting color directly
   const ccHex = palette[ccStep];
   if (ccHex && isValidHex(ccHex)) {
     const ccContrast = getContrastRatio(ccHex, surfaceHex);
-    if (ccContrast >= 3.05) {
+    if (ccContrast >= 3.0) {
       return createScaleResult(ccHex, surfaceHex, undefined, ccStep);
     }
   }
   
-  // Step 3: Search ALL steps for any color with >= 3.0:1 contrast
-  for (const step of STEPS) {
-    const hex = palette[step];
-    if (!hex || !isValidHex(hex)) continue;
-    
-    const contrast = getContrastRatio(hex, surfaceHex);
-    if (contrast >= 3.05) {
-      return createScaleResult(hex, surfaceHex, undefined, step);
-    }
-  }
-  
-  // Step 4: Use alpha blending to GUARANTEE 3.0:1 contrast
-  // Always use pure black or white which will always have high contrast
-  // Dark CC = black, Light CC = white
+  // Last resort: Use alpha blending to guarantee 3.0:1 contrast
   const pureContrastingColor = contrastDir === 'dark' ? '#000000' : '#ffffff';
-  
-  // Pure black/white will always have sufficient contrast, so alpha blend to exactly 3.05:1
-  const alpha = findAlphaForContrast(pureContrastingColor, surfaceHex, 3.05);
+  const alpha = findAlphaForContrast(pureContrastingColor, surfaceHex, 3.0);
   const blendedHex = blendWithAlpha(pureContrastingColor, surfaceHex, alpha);
   const rgbaDisplay = hexToRgba(pureContrastingColor, alpha);
   return createScaleResult(rgbaDisplay, surfaceHex, alpha, ccStep, blendedHex);
@@ -402,7 +400,8 @@ function getDefaultContrastingColor(contrastDir: 'dark' | 'light'): string {
  */
 export function generateScalesForStep(
   surfaceStep: Step,
-  palette: PaletteSteps
+  palette: PaletteSteps,
+  primaryStep: Step = 600
 ): StepScales | null {
   const surfaceHex = palette[surfaceStep];
   
@@ -434,7 +433,7 @@ export function generateScalesForStep(
   const lowAlpha = low.alpha ?? 1;
   
   // Generate Bold and BoldA11Y for Heavy calculation
-  const bold = generateBold(surfaceStep, surfaceHex, tempPalette, contrastDir);
+  const bold = generateBold(surfaceStep, surfaceHex, tempPalette, contrastDir, primaryStep);
   const boldA11Y = generateBoldA11Y(surfaceStep, surfaceHex, tempPalette, contrastDir);
   
   return {
@@ -452,11 +451,11 @@ export function generateScalesForStep(
 /**
  * Generate all scales for all steps in a palette
  */
-export function generateAllScales(palette: PaletteSteps): Record<Step, StepScales | null> {
+export function generateAllScales(palette: PaletteSteps, primaryStep: Step = 600): Record<Step, StepScales | null> {
   const result: Partial<Record<Step, StepScales | null>> = {};
   
   for (const step of STEPS) {
-    result[step] = generateScalesForStep(step, palette);
+    result[step] = generateScalesForStep(step, palette, primaryStep);
   }
   
   return result as Record<Step, StepScales | null>;

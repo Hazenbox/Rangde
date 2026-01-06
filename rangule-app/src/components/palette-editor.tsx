@@ -53,7 +53,7 @@ function ColorInput({ step, value, onChange }: ColorInputProps) {
         <PopoverTrigger asChild>
           <button
             className={cn(
-              "h-8 w-8 rounded-md border shadow-sm transition-all hover:scale-105",
+              "h-8 w-8 rounded-md border transition-all hover:scale-105",
               !isValid && "ring-2 ring-destructive"
             )}
             style={{ backgroundColor: bgColor }}

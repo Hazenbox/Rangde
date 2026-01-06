@@ -8,7 +8,7 @@ import { HowItWorks } from "@/components/how-it-works";
 import { usePaletteStore } from "@/store/palette-store";
 
 export default function Home() {
-  const { activePaletteId, regenerateScales, viewMode } = usePaletteStore();
+  const { activePaletteId, regenerateScales, viewMode, isFullscreen } = usePaletteStore();
   const [mounted, setMounted] = React.useState(false);
 
   // Ensure hydration is complete before rendering
@@ -30,12 +30,12 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-sidebar-background relative z-10">
       {/* Sidebar */}
-      <ColorSidebar />
+      {!isFullscreen && <ColorSidebar />}
 
       {/* Main area */}
-      <main className="flex flex-1 flex-col overflow-hidden">
+      <main className={`flex flex-1 flex-col overflow-hidden bg-background relative z-10 ${isFullscreen ? 'm-0 rounded-none' : 'm-2 rounded-[16px]'}`}>
         {viewMode === "how-it-works" ? (
           <HowItWorks />
         ) : activePaletteId ? (

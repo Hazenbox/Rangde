@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LayoutGrid, List, ArrowUpDown, Download, Circle, Copy, Check } from "lucide-react";
+import { LayoutGrid, List, ArrowUpDown, Download, Circle, Copy, Check, ChevronDown, Maximize2, Minimize2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,94 @@ function exportAsText(name: string, steps: PaletteSteps) {
     .join('\n');
   const text = `${name}\n${'='.repeat(name.length)}\n\n${lines}`;
   downloadFile(text, `${name.toLowerCase().replace(/\s+/g, '-')}.txt`, "text/plain");
+}
+
+// SVG generator for Figma copy - generates all scales for each step
+function generateScalesSVG(
+  name: string, 
+  generatedScales: Record<Step, StepScales | null>,
+  steps: Step[]
+): string {
+  const scaleKeys = ['surface', 'high', 'medium', 'low', 'heavy', 'bold', 'boldA11Y', 'minimal'] as const;
+  const scaleLabels = ['Surface', 'High', 'Medium', 'Low', 'Heavy', 'Bold', 'Bold A11Y', 'Minimal'];
+  
+  const swatchWidth = 80;
+  const swatchHeight = 48;
+  const stepLabelWidth = 50;
+  const gap = 4;
+  const rowGap = 8;
+  const headerHeight = 24;
+  const labelHeight = 16;
+  
+  const filledSteps = steps.filter(step => generatedScales[step]);
+  const cols = scaleKeys.length;
+  
+  const width = stepLabelWidth + cols * swatchWidth + (cols - 1) * gap + 20;
+  const height = headerHeight + labelHeight + filledSteps.length * (swatchHeight + rowGap) + 40;
+  
+  let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">\n`;
+  svg += `  <style>\n`;
+  svg += `    .title { font-family: system-ui, sans-serif; font-size: 14px; font-weight: 600; fill: #333; }\n`;
+  svg += `    .header { font-family: system-ui, sans-serif; font-size: 10px; font-weight: 500; fill: #666; }\n`;
+  svg += `    .step-label { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 500; fill: #666; }\n`;
+  svg += `    .hex-label { font-family: ui-monospace, monospace; font-size: 8px; }\n`;
+  svg += `  </style>\n`;
+  
+  // Title
+  svg += `  <text x="0" y="16" class="title">${name} - Color Scales</text>\n`;
+  
+  // Column headers
+  scaleLabels.forEach((label, i) => {
+    const x = stepLabelWidth + i * (swatchWidth + gap) + swatchWidth / 2;
+    svg += `  <text x="${x}" y="${headerHeight + 12}" text-anchor="middle" class="header">${label}</text>\n`;
+  });
+  
+  // Rows for each step
+  filledSteps.forEach((step, rowIndex) => {
+    const scales = generatedScales[step];
+    if (!scales) return;
+    
+    const y = headerHeight + labelHeight + 8 + rowIndex * (swatchHeight + rowGap);
+    
+    // Step label
+    svg += `  <text x="${stepLabelWidth - 8}" y="${y + swatchHeight / 2 + 4}" text-anchor="end" class="step-label">${step}</text>\n`;
+    
+    // Scale swatches
+    scaleKeys.forEach((key, colIndex) => {
+      const scale = scales[key];
+      if (!scale || !scale.hex) return;
+      
+      const x = stepLabelWidth + colIndex * (swatchWidth + gap);
+      const hex = scale.blendedHex || (scale.hex.startsWith('#') ? scale.hex : '#808080');
+      const displayHex = scale.hex.startsWith('#') ? scale.hex.toUpperCase() : scale.hex;
+      
+      // Determine text color for hex label
+      const textColor = isValidHex(hex) ? getReadableTextColor(hex) : '#333';
+      
+      // Swatch rectangle
+      svg += `  <rect x="${x}" y="${y}" width="${swatchWidth}" height="${swatchHeight}" fill="${hex}" rx="4"/>\n`;
+      
+      // Hex label inside swatch
+      svg += `  <text x="${x + swatchWidth / 2}" y="${y + swatchHeight / 2 + 3}" text-anchor="middle" class="hex-label" fill="${textColor}">${displayHex}</text>\n`;
+    });
+  });
+  
+  svg += `</svg>`;
+  return svg;
+}
+
+async function copyScalesAsSVG(
+  name: string, 
+  generatedScales: Record<Step, StepScales | null>,
+  steps: Step[]
+): Promise<boolean> {
+  const svg = generateScalesSVG(name, generatedScales, steps);
+  try {
+    await navigator.clipboard.writeText(svg);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 const SCALE_LABELS = [
@@ -158,7 +246,7 @@ function ColorEditCell({ step, value, onChange }: ColorEditCellProps) {
         <PopoverTrigger asChild>
           <button
             className={cn(
-              "h-12 w-8 shrink-0 rounded-md border shadow-sm transition-all hover:scale-105 cursor-pointer",
+              "h-12 w-8 shrink-0 rounded-md border transition-all hover:scale-105 cursor-pointer",
               !isValid && "ring-2 ring-destructive"
             )}
             style={{ backgroundColor: bgColor }}
@@ -177,7 +265,7 @@ function ColorEditCell({ step, value, onChange }: ColorEditCellProps) {
         value={localValue}
         onChange={handleChange}
         className={cn(
-          "h-12 w-24 font-mono text-xs text-center cursor-pointer transition-shadow group-hover:ring-2 group-hover:ring-ring/50",
+          "h-12 w-24 font-mono text-xs text-center cursor-pointer transition-all group-hover:ring-2 group-hover:ring-ring/50",
           !isValid && "border-destructive focus-visible:ring-destructive"
         )}
         style={{
@@ -268,7 +356,20 @@ function ListScaleRow({ scale, label, step, displayStep, hasAlpha, alpha, cellTe
   
   const handleCopy = async () => {
     try {
+      // Use clipboard API if available (HTTPS), otherwise fallback to execCommand
+      if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(scale.hex);
+      } else {
+        // Fallback for HTTP contexts
+        const textArea = document.createElement("textarea");
+        textArea.value = scale.hex;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (err) {
@@ -449,7 +550,7 @@ function ListViewCard({ step, scales, paletteValue, showDots, paletteId, onUpdat
   const hasValue = !!paletteValue;
   
   return (
-    <div className="group flex flex-col rounded-lg border overflow-hidden shadow-sm">
+    <div className="group flex flex-col rounded-lg border overflow-hidden">
       {/* Header with step number and always-visible input */}
       <div 
         className="flex items-center justify-between px-3 h-8 cursor-pointer"
@@ -515,11 +616,20 @@ function ListViewCard({ step, scales, paletteValue, showDots, paletteId, onUpdat
 }
 
 export function ScalePreview() {
-  const { generatedScales, activePaletteId, palettes, updatePaletteStep } = usePaletteStore();
-  const [viewMode, setViewMode] = React.useState<ViewMode>("grid");
+  const { generatedScales, activePaletteId, palettes, updatePaletteStep, updatePrimaryStep, isFullscreen, toggleFullscreen } = usePaletteStore();
+  const [viewMode, setViewMode] = React.useState<ViewMode>("list");
   const [sortOrder, setSortOrder] = React.useState<SortOrder>("asc");
   const [downloadOpen, setDownloadOpen] = React.useState(false);
+  const [primaryOpen, setPrimaryOpen] = React.useState(false);
   const [showDots, setShowDots] = React.useState(true);
+  const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'error'>('idle');
+  
+  // Reset copy status when download menu closes
+  React.useEffect(() => {
+    if (!downloadOpen) {
+      setCopyStatus('idle');
+    }
+  }, [downloadOpen]);
 
   const activePalette = React.useMemo(
     () => palettes.find((p) => p.id === activePaletteId),
@@ -545,13 +655,46 @@ export function ScalePreview() {
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div>
             <h2 className="font-semibold">{activePalette.name}</h2>
-            <p className="text-xs text-muted-foreground">
-              Add all 200-2500 steps to generate accurate colors
-            </p>
           </div>
           
           {/* Action buttons */}
           <div className="flex items-center gap-1.5">
+            {/* Base Step Dropdown */}
+            <Popover open={primaryOpen} onOpenChange={setPrimaryOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-xs cursor-pointer gap-1"
+                >
+                  <span className="text-muted-foreground">Base:</span>
+                  <span className="font-mono">{activePalette.primaryStep}</span>
+                  <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[var(--radix-popover-trigger-width)] p-1 max-h-64 overflow-y-auto" align="end">
+                <div className="flex flex-col">
+                  {STEPS.map((step) => (
+                    <button
+                      key={step}
+                      className={cn(
+                        "rounded px-2 py-1 text-xs text-left cursor-pointer font-mono",
+                        step === activePalette.primaryStep
+                          ? "bg-accent text-accent-foreground"
+                          : "hover:bg-accent"
+                      )}
+                      onClick={() => {
+                        updatePrimaryStep(activePalette.id, step);
+                        setPrimaryOpen(false);
+                      }}
+                    >
+                      {step}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
             {/* Show Dots Toggle */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -561,7 +704,7 @@ export function ScalePreview() {
                   className="h-6 w-6 p-0 cursor-pointer"
                   onClick={() => setShowDots(!showDots)}
                 >
-                  <Circle className={cn("h-2 w-2", showDots ? "fill-current opacity-70" : "opacity-50")} />
+                  <Circle className={cn("h-3.5 w-3.5", showDots ? "fill-current opacity-70" : "opacity-50")} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
@@ -577,7 +720,7 @@ export function ScalePreview() {
                   size="sm"
                   className="h-6 w-6 p-0 cursor-pointer"
                 >
-                  <Download className="h-2.5 w-2.5 opacity-50" />
+                  <Download className="h-3.5 w-3.5 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-32 p-1" align="end">
@@ -609,6 +752,19 @@ export function ScalePreview() {
                   >
                     Text
                   </button>
+                  <div className="my-1 h-px bg-border/50" />
+                  <button
+                    className="rounded px-2 py-1.5 text-xs hover:bg-accent text-left cursor-pointer"
+                    onClick={async () => {
+                      const success = await copyScalesAsSVG(activePalette.name, generatedScales, sortedSteps);
+                      setCopyStatus(success ? 'copied' : 'error');
+                      if (success) {
+                        setTimeout(() => setDownloadOpen(false), 800);
+                      }
+                    }}
+                  >
+                    {copyStatus === 'copied' ? '✓ Copied!' : copyStatus === 'error' ? 'Failed' : 'Copy for Figma'}
+                  </button>
                 </div>
               </PopoverContent>
             </Popover>
@@ -622,7 +778,7 @@ export function ScalePreview() {
                   className="h-6 w-6 p-0 cursor-pointer"
                   onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
                 >
-                  <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />
+                  <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
@@ -631,38 +787,46 @@ export function ScalePreview() {
             </Tooltip>
 
             {/* View Toggle */}
-            <div className="flex items-center rounded-md border p-0.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={viewMode === "grid" ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-5 w-5 p-0 cursor-pointer"
-                    onClick={() => setViewMode("grid")}
-                  >
-                    <LayoutGrid className="h-2 w-2 opacity-50" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p className="text-xs">Grid View</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={viewMode === "list" ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-5 w-5 p-0 cursor-pointer"
-                    onClick={() => setViewMode("list")}
-                  >
-                    <List className="h-2 w-2 opacity-50" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p className="text-xs">List View</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 cursor-pointer"
+                  onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+                >
+                  {viewMode === "grid" ? (
+                    <List className="h-3.5 w-3.5 opacity-50" />
+                  ) : (
+                    <LayoutGrid className="h-3.5 w-3.5 opacity-50" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">{viewMode === "grid" ? "List View" : "Grid View"}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Fullscreen Toggle */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 cursor-pointer"
+                  onClick={toggleFullscreen}
+                >
+                  {isFullscreen ? (
+                    <Minimize2 className="h-3.5 w-3.5 opacity-50" />
+                  ) : (
+                    <Maximize2 className="h-3.5 w-3.5 opacity-50" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">{isFullscreen ? "Exit Fullscreen" : "Fullscreen"}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
         

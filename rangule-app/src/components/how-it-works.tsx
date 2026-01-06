@@ -7,50 +7,98 @@ const SCALE_DATA = [
   {
     name: "Surface",
     contrastTarget: "N/A",
-    logic: "The base color for each step. All other scales are calculated relative to this surface color.",
-    example: "Step 2400 surface = #e8eaff",
+    logic: [
+      "The base background color for each step in the palette",
+      "All other scales are calculated relative to this surface color",
+      "Determines whether dark or light contrasting color is needed",
+    ],
+    exampleLight: "Surface 2400 = #f3f4ff (light purple background)",
+    exampleDark: "Surface 200 = #0b0034 (dark indigo background)",
   },
   {
     name: "High",
-    contrastTarget: "Maximum available",
-    logic: "Uses the contrasting color at 100% opacity. Light surface → step 200 (darkest). Dark surface → step 2500 (lightest).",
-    example: "On light surface, uses darkest palette color",
+    contrastTarget: "Maximum",
+    logic: [
+      "Uses the contrasting color at 100% opacity (no transparency)",
+      "Light surface → uses step 200 (darkest color in palette)",
+      "Dark surface → uses step 2500 (lightest color in palette)",
+      "Provides maximum contrast for primary text and important elements",
+    ],
+    exampleLight: "Surface 2400 (light) → High = step 200 (#0b0034)",
+    exampleDark: "Surface 200 (dark) → High = step 2500 (#ffffff)",
   },
   {
     name: "Medium",
-    contrastTarget: "Between High and Low",
-    logic: "Contrasting color with alpha = midpoint between 1.0 and Low's alpha. Formula: alpha = (1.0 + Low_alpha) / 2",
-    example: "If Low alpha = 0.55, Medium alpha = 0.775",
+    contrastTarget: "Between High & Low",
+    logic: [
+      "Uses the same contrasting color as High, but with reduced opacity",
+      "Alpha = midpoint between 1.0 (High) and Low's alpha",
+      "Formula: alpha = floor((1.0 + Low_alpha) / 2)",
+      "Provides moderate contrast for secondary text",
+    ],
+    exampleLight: "Surface 2400, Low alpha=0.56 → Medium = step 200 at 78% opacity",
+    exampleDark: "Surface 200, Low alpha=0.55 → Medium = step 2500 at 77% opacity",
   },
   {
     name: "Low",
-    contrastTarget: "4.5:1 (WCAG AA)",
-    logic: "Contrasting color with transparency calculated to achieve exactly 4.5:1 contrast ratio against the surface.",
-    example: "Alpha adjusted until contrast = 4.5:1",
+    contrastTarget: "≥ 4.5:1",
+    logic: [
+      "Uses the contrasting color with transparency to achieve exactly 4.5:1 contrast",
+      "Calculates the minimum alpha needed to meet WCAG AA for normal text",
+      "If full opacity contrast < 4.5:1, searches for a palette step that meets the requirement",
+      "Ensures accessibility for body text while maintaining subtlety",
+    ],
+    exampleLight: "Surface 2400 → Low = step 200 at 56% opacity (4.5:1 contrast)",
+    exampleDark: "Surface 200 → Low = step 2500 at 55% opacity (4.5:1 contrast)",
   },
   {
     name: "Bold",
     contrastTarget: "≥ 3.0:1",
-    logic: "Starts at base step. If contrast < 3.0:1, moves toward contrasting color until ≥ 3.0:1 is achieved.",
-    example: "Step 2100 → may use step 1000 if needed",
+    logic: [
+      "Starts from the user-selected base step (e.g., 600)",
+      "Checks if contrast ratio against surface is ≥ 3.0:1",
+      "If contrast fails, moves toward the contrasting color step by step",
+      "Continues until finding a step with ≥ 3.0:1 contrast",
+      "Suitable for large text (18pt+) and UI components",
+    ],
+    exampleLight: "Base 600, Surface 2400 → 600 passes (3.2:1) → Bold = 600",
+    exampleDark: "Base 600, Surface 200 → 600 fails (1.67:1) → 700, 800, 900 fail → 1000 passes (3.51:1)",
   },
   {
     name: "Bold A11Y",
     contrastTarget: "≥ 4.5:1",
-    logic: "Starts at base step. If contrast < 4.5:1, moves toward contrasting color until ≥ 4.5:1 is achieved.",
-    example: "Step 2100 → may use step 800 if needed",
+    logic: [
+      "Starts from the surface step position",
+      "Moves toward the contrasting color until ≥ 4.5:1 contrast is achieved",
+      "Ensures WCAG AA compliance for normal text",
+      "Falls back to searching all steps if needed",
+    ],
+    exampleLight: "Surface 2400 → checks 2400, 2300, 2200... → step 1200 passes (4.79:1)",
+    exampleDark: "Surface 200 → checks 200, 300, 400... → step 1200 passes (4.79:1)",
   },
   {
     name: "Heavy",
-    contrastTarget: "Varies",
-    logic: "Dark CC: Midpoint between Bold step and step 200, capped at 800. Light CC: Same as BoldA11Y (or step 2500 if >3 steps away).",
-    example: "Bold=1200 → Heavy=(1200+200)/2=700",
+    contrastTarget: "High contrast",
+    logic: [
+      "Dark CC (light surface): Midpoint between Bold step and step 200",
+      "Capped at step 800 (never goes above 800)",
+      "Light CC (dark surface): Same as BoldA11Y",
+      "Exception: If BoldA11Y is >3 steps away from surface, uses step 2500",
+    ],
+    exampleLight: "Surface 2400, Bold=600 → Heavy = (600 + 200) / 2 = 400",
+    exampleDark: "Surface 200, BoldA11Y=1200 → Heavy = 1200 (same as BoldA11Y)",
   },
   {
     name: "Minimal",
-    contrastTarget: "Low contrast (decorative)",
-    logic: "Exactly 2 steps away from surface. Dark CC: surface - 200. Light CC: surface + 200.",
-    example: "Surface 2400 → Minimal 2200",
+    contrastTarget: "Low (decorative)",
+    logic: [
+      "Provides subtle, low-contrast color for decorative elements",
+      "Steps 200-1100: Add 2 steps (e.g., 200 → 400)",
+      "Steps 1200-2500: Subtract 2 steps (e.g., 2400 → 2200)",
+      "Not intended for text; use for borders, dividers, backgrounds",
+    ],
+    exampleLight: "Surface 2400 → Minimal = 2200",
+    exampleDark: "Surface 200 → Minimal = 400",
   },
 ];
 
@@ -90,27 +138,35 @@ const WCAG_DATA = [
 const TERMINOLOGY_DATA = [
   {
     term: "Surface",
-    definition: "The background color on which other colors are placed.",
+    definition: "The background color on which other colors are placed. Each step (200-2500) can be used as a surface.",
   },
   {
     term: "Contrasting Color (CC)",
-    definition: "The color used for text/elements on a surface. Dark surfaces need light CC, light surfaces need dark CC.",
+    definition: "The color used for text/elements on a surface. Automatically determined based on surface lightness.",
   },
   {
     term: "Dark CC",
-    definition: "When surface is light, the contrasting color is dark (toward step 200).",
+    definition: "When surface is light (contrast vs white < 4.5:1), uses dark colors (toward step 200) for contrast.",
   },
   {
     term: "Light CC",
-    definition: "When surface is dark, the contrasting color is light (toward step 2500).",
+    definition: "When surface is dark (contrast vs white ≥ 4.5:1), uses light colors (toward step 2500) for contrast.",
+  },
+  {
+    term: "Base Step",
+    definition: "User-selected step (default: 600) used as starting point for Bold calculation. Set via the Base dropdown.",
   },
   {
     term: "Step",
-    definition: "A position in the color scale (200-2500). Lower numbers are lighter, higher numbers are darker.",
+    definition: "A position in the color scale (200-2500). Step 200 is darkest, step 2500 is lightest.",
   },
   {
     term: "Alpha",
-    definition: "Transparency value (0-1). Used to blend contrasting color with surface for specific contrast ratios.",
+    definition: "Transparency value (0-1). Used to blend contrasting color with surface to achieve specific contrast ratios.",
+  },
+  {
+    term: "Contrast Ratio",
+    definition: "WCAG measure of luminance difference between two colors. Higher ratios = better readability.",
   },
 ];
 
@@ -136,10 +192,9 @@ export function HowItWorks() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-3 py-2 text-left font-semibold">Scale</th>
-                    <th className="px-3 py-2 text-left font-semibold">Target</th>
-                    <th className="px-3 py-2 text-left font-semibold">Logic</th>
-                    <th className="px-3 py-2 text-left font-semibold">Example</th>
+                    <th className="px-3 py-2 text-left font-semibold whitespace-nowrap w-28">Scale</th>
+                    <th className="px-3 py-2 text-left font-semibold w-[55%]">Logic</th>
+                    <th className="px-3 py-2 text-left font-semibold w-[30%]">Examples</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -148,10 +203,26 @@ export function HowItWorks() {
                       key={scale.name} 
                       className={index % 2 === 0 ? "bg-background" : "bg-muted/30"}
                     >
-                      <td className="px-3 py-2 font-medium whitespace-nowrap">{scale.name}</td>
-                      <td className="px-3 py-2 font-mono text-[10px]">{scale.contrastTarget}</td>
-                      <td className="px-3 py-2 text-muted-foreground max-w-xs">{scale.logic}</td>
-                      <td className="px-3 py-2 text-muted-foreground text-[10px] font-mono">{scale.example}</td>
+                      <td className="px-3 py-2 align-top">
+                        <div className="font-medium">{scale.name}</div>
+                        <div className="text-[10px] text-muted-foreground font-normal">({scale.contrastTarget})</div>
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground align-top">
+                        <ul className="space-y-0.5">
+                          {scale.logic.map((item, i) => (
+                            <li key={i} className="flex gap-1.5">
+                              <span className="text-muted-foreground/50">•</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </td>
+                      <td className="px-3 py-2 text-[10px] font-mono text-muted-foreground align-top">
+                        <div className="space-y-1">
+                          <div><span className="text-foreground/70">Light:</span> {scale.exampleLight}</div>
+                          <div><span className="text-foreground/70">Dark:</span> {scale.exampleDark}</div>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -226,29 +297,45 @@ export function HowItWorks() {
           {/* Quick Reference */}
           <section>
             <h3 className="text-sm font-semibold mb-3">Quick Reference</h3>
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-lg border p-3 space-y-2">
                 <h4 className="text-xs font-semibold">Light Surface (e.g., step 2400)</h4>
                 <ul className="text-[11px] text-muted-foreground space-y-1">
+                  <li>• Contrast vs white &lt; 4.5:1</li>
                   <li>• Contrasting color: Dark (step 200)</li>
-                  <li>• Bold/BoldA11Y: Move toward step 200</li>
-                  <li>• Minimal: Surface - 200</li>
+                  <li>• Bold: Base step → move toward 200 until ≥ 3.0:1</li>
+                  <li>• BoldA11Y: Surface → move toward 200 until ≥ 4.5:1</li>
+                  <li>• Heavy: Midpoint(Bold, 200), capped at 800</li>
+                  <li>• Minimal: Surface - 200 (e.g., 2400 → 2200)</li>
                 </ul>
               </div>
               <div className="rounded-lg border p-3 space-y-2">
                 <h4 className="text-xs font-semibold">Dark Surface (e.g., step 400)</h4>
                 <ul className="text-[11px] text-muted-foreground space-y-1">
+                  <li>• Contrast vs white ≥ 4.5:1</li>
                   <li>• Contrasting color: Light (step 2500)</li>
-                  <li>• Bold/BoldA11Y: Move toward step 2500</li>
-                  <li>• Minimal: Surface + 200</li>
+                  <li>• Bold: Base step → move toward 2500 until ≥ 3.0:1</li>
+                  <li>• BoldA11Y: Surface → move toward 2500 until ≥ 4.5:1</li>
+                  <li>• Heavy: Same as BoldA11Y (or 2500 if &gt;3 steps away)</li>
+                  <li>• Minimal: Surface + 200 (e.g., 400 → 600)</li>
                 </ul>
               </div>
               <div className="rounded-lg border p-3 space-y-2">
-                <h4 className="text-xs font-semibold">Alpha Blending</h4>
+                <h4 className="text-xs font-semibold">Alpha Blending (High/Medium/Low)</h4>
                 <ul className="text-[11px] text-muted-foreground space-y-1">
-                  <li>• Low: Alpha for 4.5:1 contrast</li>
-                  <li>• Medium: (1.0 + Low_alpha) / 2</li>
-                  <li>• High: Always 1.0 (100%)</li>
+                  <li>• High: 100% opacity (alpha = 1.0)</li>
+                  <li>• Low: Minimum alpha for 4.5:1 contrast</li>
+                  <li>• Medium: floor((1.0 + Low_alpha) / 2)</li>
+                  <li>• All use the same contrasting color (step 200 or 2500)</li>
+                </ul>
+              </div>
+              <div className="rounded-lg border p-3 space-y-2">
+                <h4 className="text-xs font-semibold">Minimal Step Mapping</h4>
+                <ul className="text-[11px] text-muted-foreground space-y-1">
+                  <li>• Steps 200-1100: +2 steps (200→400, 600→800, etc.)</li>
+                  <li>• Steps 1200-2500: -2 steps (1200→1000, 2500→2300, etc.)</li>
+                  <li>• Always moves toward middle of the scale</li>
+                  <li>• Used for subtle, decorative elements only</li>
                 </ul>
               </div>
             </div>

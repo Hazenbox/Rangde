@@ -9,6 +9,7 @@ export interface Palette {
   id: string;
   name: string;
   steps: PaletteSteps;
+  primaryStep: Step;
   createdAt: number;
 }
 
@@ -19,6 +20,7 @@ interface PaletteState {
   activePaletteId: string | null;
   generatedScales: GeneratedScalesMap | null;
   viewMode: ViewMode;
+  isFullscreen: boolean;
   
   // Actions
   createPalette: (name: string) => void;
@@ -26,9 +28,11 @@ interface PaletteState {
   renamePalette: (id: string, name: string) => void;
   setActivePalette: (id: string) => void;
   updatePaletteStep: (paletteId: string, step: Step, hex: string) => void;
+  updatePrimaryStep: (paletteId: string, step: Step) => void;
   regenerateScales: () => void;
   getActivePalette: () => Palette | null;
   setViewMode: (mode: ViewMode) => void;
+  toggleFullscreen: () => void;
 }
 
 function generateId(): string {
@@ -39,6 +43,7 @@ function generateId(): string {
 const INDIGO_SAMPLE_PALETTE: Palette = {
   id: "sample_indigo_v2",
   name: "Sample - Indigo",
+  primaryStep: 600,
   steps: {
     200: "#0b0034",
     300: "#170054",
@@ -73,21 +78,23 @@ export const usePaletteStore = create<PaletteState>()(
     (set, get) => ({
       palettes: [INDIGO_SAMPLE_PALETTE],
       activePaletteId: INDIGO_SAMPLE_PALETTE.id,
-      generatedScales: generateAllScales(INDIGO_SAMPLE_PALETTE.steps),
+      generatedScales: generateAllScales(INDIGO_SAMPLE_PALETTE.steps, INDIGO_SAMPLE_PALETTE.primaryStep),
       viewMode: "palette" as ViewMode,
+      isFullscreen: false,
 
       createPalette: (name: string) => {
         const newPalette: Palette = {
           id: generateId(),
           name,
           steps: createDefaultPalette(),
+          primaryStep: 600,
           createdAt: Date.now()
         };
 
         set((state) => ({
           palettes: [...state.palettes, newPalette],
           activePaletteId: newPalette.id,
-          generatedScales: generateAllScales(newPalette.steps)
+          generatedScales: generateAllScales(newPalette.steps, newPalette.primaryStep)
         }));
       },
 
@@ -103,7 +110,7 @@ export const usePaletteStore = create<PaletteState>()(
           return {
             palettes: newPalettes,
             activePaletteId: newActiveId,
-            generatedScales: activePalette ? generateAllScales(activePalette.steps) : null
+            generatedScales: activePalette ? generateAllScales(activePalette.steps, activePalette.primaryStep) : null
           };
         });
       },
@@ -121,7 +128,7 @@ export const usePaletteStore = create<PaletteState>()(
         if (palette) {
           set({
             activePaletteId: id,
-            generatedScales: generateAllScales(palette.steps)
+            generatedScales: generateAllScales(palette.steps, palette.primaryStep)
           });
         }
       },
@@ -143,7 +150,27 @@ export const usePaletteStore = create<PaletteState>()(
           return {
             palettes: newPalettes,
             generatedScales: updatedPalette && state.activePaletteId === paletteId
-              ? generateAllScales(updatedPalette.steps)
+              ? generateAllScales(updatedPalette.steps, updatedPalette.primaryStep)
+              : state.generatedScales
+          };
+        });
+      },
+
+      updatePrimaryStep: (paletteId: string, step: Step) => {
+        set((state) => {
+          const newPalettes = state.palettes.map((p) => {
+            if (p.id === paletteId) {
+              return { ...p, primaryStep: step };
+            }
+            return p;
+          });
+
+          const updatedPalette = newPalettes.find((p) => p.id === paletteId);
+          
+          return {
+            palettes: newPalettes,
+            generatedScales: updatedPalette && state.activePaletteId === paletteId
+              ? generateAllScales(updatedPalette.steps, updatedPalette.primaryStep)
               : state.generatedScales
           };
         });
@@ -152,7 +179,7 @@ export const usePaletteStore = create<PaletteState>()(
       regenerateScales: () => {
         const palette = get().getActivePalette();
         if (palette) {
-          set({ generatedScales: generateAllScales(palette.steps) });
+          set({ generatedScales: generateAllScales(palette.steps, palette.primaryStep) });
         }
       },
 
@@ -163,6 +190,10 @@ export const usePaletteStore = create<PaletteState>()(
 
       setViewMode: (mode: ViewMode) => {
         set({ viewMode: mode });
+      },
+
+      toggleFullscreen: () => {
+        set((state) => ({ isFullscreen: !state.isFullscreen }));
       }
     }),
     {
@@ -179,6 +210,13 @@ export const usePaletteStore = create<PaletteState>()(
         // Remove old sample palettes and add the fresh one
         const oldSampleIds = ["sample_indigo", "sample_indigo_v2"];
         palettes = palettes.filter(p => !oldSampleIds.includes(p.id));
+        
+        // Ensure all palettes have primaryStep (migration for existing palettes)
+        palettes = palettes.map(p => ({
+          ...p,
+          primaryStep: p.primaryStep || 600
+        }));
+        
         const mergedPalettes = [INDIGO_SAMPLE_PALETTE, ...palettes];
         
         // Set active palette - use persisted if valid, otherwise use sample
@@ -192,7 +230,7 @@ export const usePaletteStore = create<PaletteState>()(
           ...currentState,
           palettes: mergedPalettes,
           activePaletteId,
-          generatedScales: activePalette ? generateAllScales(activePalette.steps) : null
+          generatedScales: activePalette ? generateAllScales(activePalette.steps, activePalette.primaryStep) : null
         };
       }
     }

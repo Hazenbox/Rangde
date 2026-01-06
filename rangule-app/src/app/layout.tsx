@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeRipple } from "@/components/theme-ripple";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rangule - Color Scale Generator",
+  title: "Rang De - Color Scale Generator",
   description: "Design system color generation tool with WCAG accessibility compliance",
 };
 
@@ -32,6 +33,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <ThemeRipple />
           {children}
         </ThemeProvider>
       </body>
