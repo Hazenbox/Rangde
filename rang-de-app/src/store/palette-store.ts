@@ -106,7 +106,9 @@ export const usePaletteStore = create<PaletteState>()(
     (set, get) => ({
       palettes: [INDIGO_SAMPLE_PALETTE],
       activePaletteId: INDIGO_SAMPLE_PALETTE.id,
-      generatedScales: generateAllScales(INDIGO_SAMPLE_PALETTE.steps, INDIGO_SAMPLE_PALETTE.primaryStep),
+      generatedScales: typeof window !== "undefined" 
+        ? generateAllScales(INDIGO_SAMPLE_PALETTE.steps, INDIGO_SAMPLE_PALETTE.primaryStep)
+        : null,
       viewMode: "palette" as ViewMode,
       isFullscreen: false,
 
@@ -259,7 +261,9 @@ export const usePaletteStore = create<PaletteState>()(
           ...currentState,
           palettes: mergedPalettes,
           activePaletteId,
-          generatedScales: activePalette ? generateAllScales(activePalette.steps, activePalette.primaryStep) : null
+          generatedScales: typeof window !== "undefined" && activePalette 
+            ? generateAllScales(activePalette.steps, activePalette.primaryStep)
+            : null
         };
       }
     }
