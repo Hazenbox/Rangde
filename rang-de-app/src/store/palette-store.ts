@@ -42,7 +42,7 @@ export interface Palette {
   createdAt: number;
 }
 
-type ViewMode = "palette" | "how-it-works";
+type ViewMode = "palette" | "how-it-works" | "collections";
 
 interface PaletteState {
   palettes: Palette[];
@@ -125,8 +125,8 @@ export const usePaletteStore = create<PaletteState>()(
         generatedScales: typeof window !== "undefined" && initialPalette
           ? generateAllScales(initialPalette.steps, initialPalette.primaryStep)
           : null,
-        viewMode: "palette" as ViewMode,
-        isFullscreen: false,
+      viewMode: "palette" as ViewMode,
+      isFullscreen: false,
 
       createPalette: (name: string) => {
         const newPalette: Palette = {
@@ -248,7 +248,8 @@ export const usePaletteStore = create<PaletteState>()(
       storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({
         palettes: state.palettes,
-        activePaletteId: state.activePaletteId
+        activePaletteId: state.activePaletteId,
+        viewMode: state.viewMode
       }),
       // Merge function to ensure default palettes exist for existing users
       merge: (persistedState, currentState) => {
@@ -285,6 +286,7 @@ export const usePaletteStore = create<PaletteState>()(
           ...currentState,
           palettes: mergedPalettes,
           activePaletteId,
+          viewMode: persisted.viewMode || currentState.viewMode,
           generatedScales: typeof window !== "undefined" && activePalette 
             ? generateAllScales(activePalette.steps, activePalette.primaryStep)
             : null

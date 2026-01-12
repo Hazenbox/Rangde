@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ColorSwatch } from "@/components/color-swatch";
 import { usePaletteStore } from "@/store/palette-store";
-import { STEPS, Step, StepScales, PaletteSteps, isValidHex, normalizeHex, getReadableTextColor, ScaleResult } from "@/lib/color-utils";
+import { STEPS, Step, StepScales, PaletteSteps, isValidHex, normalizeHex, getReadableTextColor, ScaleResult, rgbaToHex, sanitizeFigmaName } from "@/lib/color-utils";
 import { cn } from "@/lib/utils";
 
 type ViewMode = "grid" | "list";
@@ -57,76 +57,217 @@ function exportAsText(name: string, steps: PaletteSteps) {
   downloadFile(text, `${name.toLowerCase().replace(/\s+/g, '-')}.txt`, "text/plain");
 }
 
-// SVG generator for Figma copy - generates all scales for each step
+// SVG generator for Figma copy - generates list view layout with cards in grid
 function generateScalesSVG(
   name: string, 
   generatedScales: Record<Step, StepScales | null>,
-  steps: Step[]
+  steps: Step[],
+  paletteSteps: PaletteSteps,
+  primaryStep: Step
 ): string {
   const scaleKeys = ['surface', 'high', 'medium', 'low', 'heavy', 'bold', 'boldA11Y', 'minimal'] as const;
   const scaleLabels = ['Surface', 'High', 'Medium', 'Low', 'Heavy', 'Bold', 'Bold A11Y', 'Minimal'];
   
-  const swatchWidth = 80;
-  const swatchHeight = 48;
-  const stepLabelWidth = 50;
-  const gap = 4;
-  const rowGap = 8;
-  const headerHeight = 24;
-  const labelHeight = 16;
+  const padding = 32;
+  const cardGap = 16;
+  const cardHeaderHeight = 32;
+  const scaleRowHeight = 28;
+  const titleHeight = 28;
+  const titleMarginBottom = 24;
+  const cardWidth = 260; // Increased for 4-column layout
+  const cardBorderRadius = 8;
+  const columnsPerRow = 4; // 4-column grid
+  const textSpacing = 4; // Spacing between text elements (4px gap)
   
   const filledSteps = steps.filter(step => generatedScales[step]);
-  const cols = scaleKeys.length;
+  const numScales = scaleKeys.length;
   
-  const width = stepLabelWidth + cols * swatchWidth + (cols - 1) * gap + 20;
-  const height = headerHeight + labelHeight + filledSteps.length * (swatchHeight + rowGap) + 40;
+  // Calculate grid dimensions
+  const cardContentHeight = cardHeaderHeight + (numScales * scaleRowHeight);
+  const rows = Math.ceil(filledSteps.length / columnsPerRow);
+  const rowHeight = cardContentHeight + cardGap;
+  const totalHeight = padding * 2 + titleHeight + titleMarginBottom + (rows * rowHeight) - cardGap;
+  const width = padding * 2 + (columnsPerRow * cardWidth) + ((columnsPerRow - 1) * cardGap);
   
-  let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">\n`;
-  svg += `  <style>\n`;
-  svg += `    .title { font-family: system-ui, sans-serif; font-size: 14px; font-weight: 600; fill: #333; }\n`;
-  svg += `    .header { font-family: system-ui, sans-serif; font-size: 10px; font-weight: 500; fill: #666; }\n`;
-  svg += `    .step-label { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 500; fill: #666; }\n`;
-  svg += `    .hex-label { font-family: ui-monospace, monospace; font-size: 8px; }\n`;
-  svg += `  </style>\n`;
+  const sanitizedName = sanitizeFigmaName(name);
+  const frameId = `${sanitizedName}-scales`;
   
-  // Title
-  svg += `  <text x="0" y="16" class="title">${name} - Color Scales</text>\n`;
+  let svg = `<svg id="${frameId}" width="${width}" height="${totalHeight}" xmlns="http://www.w3.org/2000/svg">\n`;
+  svg += `  <defs>\n`;
+  svg += `    <style>\n`;
+  svg += `      .title { font-family: 'JioType Var', sans-serif; font-style: normal; font-weight: 700; font-size: 14px; line-height: 16px; letter-spacing: -0.02em; fill: #1a1a1a; }\n`;
+  svg += `      .card-header-step { font-family: 'JioType Var', sans-serif; font-size: 11px; font-weight: 500; }\n`;
+  svg += `      .card-header-hex { font-family: 'JioType Var', sans-serif; font-size: 9px; font-weight: 500; }\n`;
+  svg += `      .scale-label { font-family: 'JioType Var', sans-serif; font-size: 10px; font-weight: 500; }\n`;
+  svg += `      .scale-info { font-family: 'JioType Var', sans-serif; font-size: 10px; font-weight: 500; }\n`;
+  svg += `    </style>\n`;
+  svg += `  </defs>\n`;
   
-  // Column headers
-  scaleLabels.forEach((label, i) => {
-    const x = stepLabelWidth + i * (swatchWidth + gap) + swatchWidth / 2;
-    svg += `  <text x="${x}" y="${headerHeight + 12}" text-anchor="middle" class="header">${label}</text>\n`;
-  });
+  // Main frame group for auto-layout
+  svg += `  <g id="${frameId}-frame">\n`;
   
-  // Rows for each step
-  filledSteps.forEach((step, rowIndex) => {
+  // Background rectangle
+  svg += `    <rect x="0" y="0" width="${width}" height="${totalHeight}" fill="#ffffff" rx="8"/>\n`;
+  
+  // Title frame group
+  svg += `    <g id="${frameId}-title">\n`;
+  const titleText = `${name} Base ${primaryStep}`;
+  svg += `      <text x="${padding}" y="${padding + 16}" class="title">${titleText}</text>\n`;
+  svg += `    </g>\n`;
+  
+  // Cards container frame group (for grid auto-layout)
+  svg += `    <g id="${frameId}-cards" transform="translate(0, ${padding + titleHeight + titleMarginBottom})">\n`;
+  
+  const startY = 0; // Relative to cards container
+  
+  // Cards for each step in grid layout
+  filledSteps.forEach((step, cardIndex) => {
     const scales = generatedScales[step];
     if (!scales) return;
     
-    const y = headerHeight + labelHeight + 8 + rowIndex * (swatchHeight + rowGap);
+    // Calculate grid position
+    const row = Math.floor(cardIndex / columnsPerRow);
+    const col = cardIndex % columnsPerRow;
+    const cardX = padding + col * (cardWidth + cardGap);
+    const cardY = startY + row * rowHeight;
     
-    // Step label
-    svg += `  <text x="${stepLabelWidth - 8}" y="${y + swatchHeight / 2 + 4}" text-anchor="end" class="step-label">${step}</text>\n`;
+    const cardId = `${sanitizedName}-${step}-card`;
     
-    // Scale swatches
-    scaleKeys.forEach((key, colIndex) => {
+    // Card frame group (for auto-layout)
+    svg += `      <g id="${cardId}" transform="translate(${cardX}, ${cardY})">\n`;
+    
+    // Get base color from palette steps
+    const baseColorRaw = paletteSteps[step] || scales.surface?.hex || '#e5e5e5';
+    let baseColorHex = baseColorRaw;
+    if (baseColorRaw.startsWith('rgba') || baseColorRaw.startsWith('rgb')) {
+      baseColorHex = rgbaToHex(baseColorRaw);
+    } else if (!baseColorRaw.startsWith('#')) {
+      baseColorHex = '#e5e5e5';
+    }
+    const baseColorDisplay = baseColorHex.toUpperCase();
+    const baseTextColor = isValidHex(baseColorHex) ? getReadableTextColor(baseColorHex) : '#333';
+    
+    // Card container background (bottom border radius only)
+    // Use path for bottom-only border radius
+    const containerPath = `M 0 0 L 0 ${cardContentHeight - cardBorderRadius} Q 0 ${cardContentHeight} ${cardBorderRadius} ${cardContentHeight} L ${cardWidth - cardBorderRadius} ${cardContentHeight} Q ${cardWidth} ${cardContentHeight} ${cardWidth} ${cardContentHeight - cardBorderRadius} L ${cardWidth} 0 Z`;
+    svg += `        <path d="${containerPath}" fill="#ffffff"/>\n`;
+    
+    // Card header frame group (for auto-layout)
+    svg += `        <g id="${cardId}-header">\n`;
+    // Card header (step number + base color) - top border radius only
+    // Use path for top-only border radius
+    const headerPath = `M ${cardBorderRadius} 0 Q 0 0 0 ${cardBorderRadius} L 0 ${cardHeaderHeight} L ${cardWidth} ${cardHeaderHeight} L ${cardWidth} ${cardBorderRadius} Q ${cardWidth} 0 ${cardWidth - cardBorderRadius} 0 Z`;
+    svg += `          <path d="${headerPath}" fill="${baseColorHex}"/>\n`;
+    svg += `          <text x="12" y="${cardHeaderHeight / 2 + 4}" class="card-header-step" fill="${baseTextColor}">${step}</text>\n`;
+    svg += `          <text x="${cardWidth - 12}" y="${cardHeaderHeight / 2 + 4}" text-anchor="end" class="card-header-hex" fill="${baseTextColor}">${baseColorDisplay}</text>\n`;
+    svg += `        </g>\n`;
+    
+    // Scale rows container frame group (for auto-layout)
+    svg += `        <g id="${cardId}-scales" transform="translate(0, ${cardHeaderHeight})">\n`;
+    
+    // Scale rows
+    scaleKeys.forEach((key, scaleIndex) => {
       const scale = scales[key];
       if (!scale || !scale.hex) return;
       
-      const x = stepLabelWidth + colIndex * (swatchWidth + gap);
-      const hex = scale.blendedHex || (scale.hex.startsWith('#') ? scale.hex : '#808080');
-      const displayHex = scale.hex.startsWith('#') ? scale.hex.toUpperCase() : scale.hex;
+      const rowY = scaleIndex * scaleRowHeight;
+      const isFirstRow = scaleIndex === 0;
+      const isLastRow = scaleIndex === numScales - 1;
       
-      // Determine text color for hex label
-      const textColor = isValidHex(hex) ? getReadableTextColor(hex) : '#333';
+      // Convert rgba to hex: prefer blendedHex, fallback to rgbaToHex
+      let scaleHex = scale.blendedHex;
+      let displayHex = scale.hex;
       
-      // Swatch rectangle
-      svg += `  <rect x="${x}" y="${y}" width="${swatchWidth}" height="${swatchHeight}" fill="${hex}" rx="4"/>\n`;
+      if (!scaleHex) {
+        if (scale.hex.startsWith('rgba') || scale.hex.startsWith('rgb')) {
+          scaleHex = rgbaToHex(scale.hex);
+          displayHex = scaleHex;
+        } else if (scale.hex.startsWith('#')) {
+          scaleHex = scale.hex;
+          displayHex = scale.hex.toUpperCase();
+        } else {
+          scaleHex = '#808080';
+          displayHex = '#808080';
+        }
+      } else {
+        // If we have blendedHex, use it for fill, but show original hex if it's not rgba
+        if (!scale.hex.startsWith('rgba') && !scale.hex.startsWith('rgb')) {
+          displayHex = scale.hex.toUpperCase();
+        } else {
+          displayHex = scaleHex.toUpperCase();
+        }
+      }
       
-      // Hex label inside swatch
-      svg += `  <text x="${x + swatchWidth / 2}" y="${y + swatchHeight / 2 + 3}" text-anchor="middle" class="hex-label" fill="${textColor}">${displayHex}</text>\n`;
+      // Determine text color for scale row
+      const scaleTextColor = isValidHex(scaleHex) ? getReadableTextColor(scaleHex) : '#333';
+      
+      // Get step number and transparency
+      const sourceStep = scale.sourceStep;
+      const hasAlpha = scale.alpha !== undefined && scale.alpha < 1;
+      const transparencyPercent = hasAlpha ? Math.round(scale.alpha! * 100) : null;
+      
+      // Determine border radius for scale row
+      // Bottommost row (minimal): rounded bottom, no top radius
+      // Other rows: no radius
+      let rowRx = '0';
+      if (isLastRow) {
+        rowRx = cardBorderRadius.toString(); // Bottommost row: rounded bottom only
+      }
+      
+      // Scale row frame group (for auto-layout)
+      svg += `          <g id="${sanitizedName}-${step}-${key}-row">\n`;
+      
+      // Scale row background with appropriate border radius
+      // For last row, use path to have bottom radius only (no top radius)
+      if (isLastRow) {
+        const rowPath = `M 0 ${rowY} L 0 ${rowY + scaleRowHeight - cardBorderRadius} Q 0 ${rowY + scaleRowHeight} ${cardBorderRadius} ${rowY + scaleRowHeight} L ${cardWidth - cardBorderRadius} ${rowY + scaleRowHeight} Q ${cardWidth} ${rowY + scaleRowHeight} ${cardWidth} ${rowY + scaleRowHeight - cardBorderRadius} L ${cardWidth} ${rowY} Z`;
+        svg += `            <path d="${rowPath}" fill="${scaleHex}"/>\n`;
+      } else {
+        svg += `            <rect x="0" y="${rowY}" width="${cardWidth}" height="${scaleRowHeight}" fill="${scaleHex}" rx="0"/>\n`;
+      }
+      
+      // Scale label (left)
+      const label = scaleLabels[scaleIndex];
+      svg += `            <text x="12" y="${rowY + scaleRowHeight / 2 + 4}" class="scale-label" fill="${scaleTextColor}">${label}</text>\n`;
+      
+      // Right side info: split into 3 separate text elements with 4px spacing
+      // Calculate text widths more accurately and position from right to left
+      const rightX = cardWidth - 12;
+      let currentX = rightX;
+      const textY = rowY + scaleRowHeight / 2 + 4;
+      
+      // Transparency percentage (rightmost, if available)
+      if (transparencyPercent !== null) {
+        const transparencyText = `${transparencyPercent}%`;
+        svg += `            <text x="${currentX}" y="${textY}" text-anchor="end" class="scale-info" fill="${scaleTextColor}">${transparencyText}</text>\n`;
+        // More accurate width estimation: ~6px per character for monospace-like font
+        const transparencyWidth = transparencyText.length * 6;
+        currentX -= transparencyWidth + textSpacing;
+      }
+      
+      // Hex code (middle)
+      svg += `            <text x="${currentX}" y="${textY}" text-anchor="end" class="scale-info" fill="${scaleTextColor}">${displayHex}</text>\n`;
+      const hexWidth = displayHex.length * 6; // Approximate width
+      currentX -= hexWidth + textSpacing;
+      
+      // Step number (leftmost, if available)
+      if (sourceStep) {
+        const stepText = sourceStep.toString();
+        svg += `            <text x="${currentX}" y="${textY}" text-anchor="end" class="scale-info" fill="${scaleTextColor}">${stepText}</text>\n`;
+      }
+      
+      // Swatch id for Figma
+      const swatchId = `${sanitizedName}-${step}-${key}`;
+      svg += `            <rect id="${swatchId}" x="0" y="${rowY}" width="${cardWidth}" height="${scaleRowHeight}" fill="none" pointer-events="none"/>\n`;
+      svg += `          </g>\n`;
     });
+    
+    svg += `        </g>\n`; // Close scales container
+    svg += `      </g>\n`; // Close card frame
   });
   
+  svg += `    </g>\n`; // Close cards container
+  svg += `  </g>\n`; // Close main frame
   svg += `</svg>`;
   return svg;
 }
@@ -134,9 +275,11 @@ function generateScalesSVG(
 async function copyScalesAsSVG(
   name: string, 
   generatedScales: Record<Step, StepScales | null>,
-  steps: Step[]
+  steps: Step[],
+  paletteSteps: PaletteSteps,
+  primaryStep: Step
 ): Promise<boolean> {
-  const svg = generateScalesSVG(name, generatedScales, steps);
+  const svg = generateScalesSVG(name, generatedScales, steps, paletteSteps, primaryStep);
   try {
     await navigator.clipboard.writeText(svg);
     return true;
@@ -756,7 +899,7 @@ export function ScalePreview() {
                   <button
                     className="rounded px-2 py-1.5 text-xs hover:bg-accent text-left cursor-pointer"
                     onClick={async () => {
-                      const success = await copyScalesAsSVG(activePalette.name, generatedScales, sortedSteps);
+                      const success = await copyScalesAsSVG(activePalette.name, generatedScales, sortedSteps, activePalette.steps, activePalette.primaryStep);
                       setCopyStatus(success ? 'copied' : 'error');
                       if (success) {
                         setTimeout(() => setDownloadOpen(false), 800);

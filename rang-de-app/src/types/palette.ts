@@ -63,4 +63,4 @@ export type GeneratedScalesMap = Record<Step, StepScales | null>;
 /**
  * View mode for the application
  */
-export type ViewMode = 'palette' | 'how-it-works';
+export type ViewMode = 'palette' | 'how-it-works' | 'collections';

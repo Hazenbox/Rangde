@@ -256,6 +256,44 @@ export function getReadableTextColor(bgHex: string): string {
 }
 
 /**
+ * Convert rgba/rgb string to hex
+ * Handles formats: rgba(255, 255, 255, 0.45), rgb(255, 255, 255)
+ */
+export function rgbaToHex(rgbaString: string): string {
+  try {
+    const c = colord(rgbaString);
+    if (c.isValid()) {
+      return c.toHex().toUpperCase();
+    }
+  } catch {
+    // Fallback parsing if colord fails
+    const match = rgbaString.match(/rgba?\(([^)]+)\)/);
+    if (match) {
+      const values = match[1].split(',').map(v => parseFloat(v.trim()));
+      if (values.length >= 3) {
+        const r = Math.round(values[0]);
+        const g = Math.round(values[1]);
+        const b = Math.round(values[2]);
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase();
+      }
+    }
+  }
+  return '#000000';
+}
+
+/**
+ * Sanitize name for Figma (lowercase, replace spaces with hyphens, remove special characters)
+ */
+export function sanitizeFigmaName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
  * Convert oklch color string to hex
  * Supports format: oklch(L% C H) or oklch(L% C H / alpha)
  * Example: oklch(16.01% 0.0209 58.51)
