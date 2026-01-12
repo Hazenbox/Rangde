@@ -95,7 +95,7 @@ Uses the darkest (step 200) or lightest (step 2500) color for maximum readabilit
 A middle ground between maximum contrast and minimum readable contrast. Great for secondary text and balanced designs.
 
 ### **Low** - Minimum Readable
-Calculated to achieve exactly 4.5:1 contrast ratio (WCAG AA standard). The most subtle readable option.
+Uses the High contrasting color and finds the lowest opacity (alpha) that achieves a contrast ratio of at least 4.5:1. Checks from 1% upwards until the threshold is met.
 
 ### **Bold** - Strong Emphasis
 Starts from your primary step and ensures at least 3.0:1 contrast. Perfect for headings and emphasis.
@@ -107,7 +107,7 @@ Like Bold, but ensures 4.5:1 contrast for full accessibility compliance. Ideal f
 Context-aware scale that provides enhanced contrast based on surface darkness. Adapts intelligently.
 
 ### **Minimal** - Subtle Variation
-A gentle shift from the surface color (±200 steps). Perfect for subtle UI elements and borders.
+Moves away from the contrasting color by 200 steps. Dark surfaces add 200, light surfaces subtract 200. Perfect for subtle UI elements and borders.
 
 ---
 
