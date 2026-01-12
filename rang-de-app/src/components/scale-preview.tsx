@@ -146,6 +146,132 @@ async function copyScalesAsSVG(
   }
 }
 
+// Generate compact contrast SVG for Figma - single column layout with increased width and spacing
+function generateContrastSVG(
+  name: string,
+  generatedScales: Record<Step, StepScales | null>,
+  steps: Step[]
+): string {
+  const scaleKeys = ['high', 'medium', 'low', 'heavy', 'bold', 'boldA11Y', 'minimal'] as const;
+  const scaleLabels = ['High', 'Medium', 'Low', 'Heavy', 'Bold', 'Bold A11Y', 'Minimal'];
+  
+  const headerHeight = 40;
+  const stepHeaderHeight = 28; // Height for "Step 200" header
+  const rowHeight = 28;        // Height for each scale row (increased for more gap)
+  const padding = 20;          // Increased padding
+  const groupSpacing = 24;     // Increased spacing between step groups
+  
+  const colWidths = {
+    label: 100,    // Increased width
+    swatch: 24,    // Increased swatch spacing
+    hex: 90,       // Increased hex column width
+    contrast: 80   // Increased contrast column width
+  };
+  
+  const filledSteps = steps.filter(step => generatedScales[step]);
+  // Reverse order: 2500 to 200 (descending)
+  const reversedSteps = [...filledSteps].reverse();
+  
+  // Single column layout - calculate width
+  const groupWidth = colWidths.label + colWidths.swatch + colWidths.hex + colWidths.contrast;
+  const width = padding * 2 + groupWidth;
+  
+  // Calculate total height
+  let currentY = headerHeight + padding;
+  
+  reversedSteps.forEach(step => {
+    const scales = generatedScales[step];
+    if (!scales) return;
+    
+    const validScaleCount = scaleKeys.filter(key => scales[key]?.hex).length;
+    // Height = header + (rows * rowHeight) + padding
+    const groupHeight = stepHeaderHeight + (validScaleCount * rowHeight) + 16;
+    
+    currentY += groupHeight + groupSpacing;
+  });
+  
+  const height = currentY - groupSpacing + padding; // Remove last spacing, add bottom padding
+  
+  let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">\n`;
+  svg += `  <style>\n`;
+  svg += `    .title { font-family: system-ui, sans-serif; font-size: 16px; font-weight: 600; fill: #111; }\n`;
+  svg += `    .step-header { font-family: system-ui, sans-serif; font-size: 12px; font-weight: 600; fill: #333; }\n`;
+  svg += `    .label { font-family: system-ui, sans-serif; font-size: 11px; fill: #666; }\n`;
+  svg += `    .hex { font-family: ui-monospace, monospace; font-size: 11px; fill: #333; }\n`;
+  svg += `    .contrast { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 500; text-anchor: end; }\n`;
+  svg += `  </style>\n`;
+  
+  // Main Background
+  svg += `  <rect width="${width}" height="${height}" fill="#ffffff" rx="8"/>\n`;
+  
+  // Main Title
+  svg += `  <text x="${padding}" y="${28}" class="title">${name} - Contrast Values</text>\n`;
+  svg += `  <line x1="${padding}" y1="${36}" x2="${width - padding}" y2="${36}" stroke="#e5e5e5" stroke-width="1"/>\n`;
+  
+  // Render Step Groups (single column)
+  let currentYPos = headerHeight + padding;
+  
+  reversedSteps.forEach((step) => {
+    const scales = generatedScales[step];
+    if (!scales) return;
+    
+    const x = padding;
+    const y = currentYPos;
+    
+    // Step Header
+    svg += `  <text x="${x}" y="${y + 18}" class="step-header">Step ${step}</text>\n`;
+    svg += `  <line x1="${x}" y1="${y + 26}" x2="${x + groupWidth}" y2="${y + 26}" stroke="#eaeaea" stroke-width="1"/>\n`;
+    
+    // Scale Rows
+    let rowOffset = 0;
+    scaleKeys.forEach((key, keyIndex) => {
+      const scale = scales[key];
+      if (!scale || !scale.hex) return;
+      
+      const rowY = y + stepHeaderHeight + (rowOffset * rowHeight) + 16; // +16 to center text vertically in row
+      
+      // Label (with gap)
+      svg += `  <text x="${x}" y="${rowY}" class="label">${scaleLabels[keyIndex]}</text>\n`;
+      
+      // Swatch (with gap)
+      const hex = scale.hex.startsWith('#') ? scale.hex : '#808080';
+      svg += `  <circle cx="${x + colWidths.label + 8}" cy="${rowY - 4}" r="6" fill="${hex}" stroke="#e5e5e5" stroke-width="0.5"/>\n`;
+      
+      // Hex (with gap)
+      const displayHex = scale.hex.startsWith('#') ? scale.hex.toUpperCase() : scale.hex;
+      svg += `  <text x="${x + colWidths.label + colWidths.swatch}" y="${rowY}" class="hex">${displayHex}</text>\n`;
+      
+      // Contrast (with gap, right-aligned)
+      const contrastColor = scale.contrastRatio >= 4.5 ? '#16a34a' : (scale.contrastRatio >= 3 ? '#ca8a04' : '#dc2626');
+      svg += `  <text x="${x + groupWidth}" y="${rowY}" class="contrast" fill="${contrastColor}">${scale.contrastRatio.toFixed(2)}:1</text>\n`;
+      
+      rowOffset++;
+    });
+    
+    // Move to next group position
+    const validScaleCount = scaleKeys.filter(key => scales[key]?.hex).length;
+    const groupHeight = stepHeaderHeight + (validScaleCount * rowHeight) + 16;
+    currentYPos += groupHeight + groupSpacing;
+  });
+  
+  svg += `</svg>`;
+  return svg;
+}
+
+async function copyContrastAsSVG(
+  name: string,
+  generatedScales: Record<Step, StepScales | null>,
+  steps: Step[]
+): Promise<boolean> {
+  const svg = generateContrastSVG(name, generatedScales, steps);
+  try {
+    await navigator.clipboard.writeText(svg);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const SCALE_LABELS = [
   { 
     key: "surface" as const, 
@@ -628,6 +754,7 @@ export function ScalePreview() {
   const [primaryOpen, setPrimaryOpen] = React.useState(false);
   const [showDots, setShowDots] = React.useState(true);
   const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'error'>('idle');
+  const [copyContrastStatus, setCopyContrastStatus] = React.useState<'idle' | 'copied' | 'error'>('idle');
   
   // Reset copy status when download menu closes
   React.useEffect(() => {
@@ -635,6 +762,14 @@ export function ScalePreview() {
       setCopyStatus('idle');
     }
   }, [downloadOpen]);
+
+  // Reset copy contrast status after delay
+  React.useEffect(() => {
+    if (copyContrastStatus === 'copied') {
+      const timer = setTimeout(() => setCopyContrastStatus('idle'), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copyContrastStatus]);
 
   const activePalette = React.useMemo(
     () => palettes.find((p) => p.id === activePaletteId),
@@ -714,6 +849,32 @@ export function ScalePreview() {
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 <p className="text-xs">{showDots ? "Hide AA indicators" : "Show AA indicators"}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Copy Contrast Button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 cursor-pointer"
+                  onClick={async () => {
+                    const success = await copyContrastAsSVG(activePalette.name, generatedScales, sortedSteps);
+                    setCopyContrastStatus(success ? 'copied' : 'error');
+                  }}
+                >
+                  {copyContrastStatus === 'copied' ? (
+                    <Check className="h-3.5 w-3.5 text-green-600" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 opacity-50" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">
+                  {copyContrastStatus === 'copied' ? 'Copied!' : 'Copy contrast values'}
+                </p>
               </TooltipContent>
             </Tooltip>
 

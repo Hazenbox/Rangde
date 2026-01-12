@@ -98,9 +98,10 @@ export function getContrastRatio(color1: string, color2: string): number {
   const darker = Math.min(l1, l2);
 
   // (L1 + 0.05) / (L2 + 0.05)
-  // Standard rounding to 2 decimal places to match typical design tool display behavior
+  // Floor/truncate to 2 decimal places to match Figma's contrast calculation
+  // Example: 8.945 → 8.94 (not 8.95)
   const ratio = (lighter + 0.05) / (darker + 0.05);
-  return parseFloat(ratio.toFixed(2));
+  return Math.floor(ratio * 100) / 100;
 }
 
 /**

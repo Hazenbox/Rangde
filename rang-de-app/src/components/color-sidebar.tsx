@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, MoreHorizontal, ChevronRight, HelpCircle, Search } from "lucide-react";
+import { Plus, MoreHorizontal, ChevronRight, HelpCircle, Search, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,6 +21,23 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { usePaletteStore } from "@/store/palette-store";
 import { STEPS, PaletteSteps } from "@/lib/color-utils";
 import { cn } from "@/lib/utils";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // Download utility functions
 function downloadFile(content: string, filename: string, type: string) {
@@ -130,7 +147,7 @@ interface PaletteItemProps {
   onDelete: () => void;
 }
 
-function PaletteItem({
+function SortablePaletteItem({
   palette,
   isActive,
   isEditing,
@@ -142,6 +159,21 @@ function PaletteItem({
   onEditCancel,
   onDelete,
 }: PaletteItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: palette.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [downloadHover, setDownloadHover] = React.useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -158,14 +190,26 @@ function PaletteItem({
 
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       className={cn(
-        "group flex h-8 items-center justify-between rounded-lg pl-3 pr-1 text-sm transition-colors cursor-pointer",
+        "group flex h-8 items-center justify-between rounded-lg pl-3 pr-1 text-sm transition-colors cursor-pointer select-none",
         isActive
           ? "bg-sidebar-accent text-sidebar-accent-foreground"
           : "hover:bg-sidebar-accent/50"
       )}
       onClick={onSelect}
     >
+      {/* Drag Handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="mr-2 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-50 transition-opacity touch-none"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.preventDefault()}
+      >
+        <GripVertical className="h-3.5 w-3.5 pointer-events-none" />
+      </div>
       {isEditing ? (
         <Input
           value={editingName}
@@ -347,6 +391,7 @@ export function ColorSidebar() {
     deletePalette,
     setActivePalette,
     renamePalette,
+    reorderPalettes,
     viewMode,
     setViewMode,
   } = usePaletteStore();
@@ -382,6 +427,29 @@ export function ColorSidebar() {
   const filteredPalettes = palettes.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Drag and drop sensors with activation delay to prevent text selection
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = palettes.findIndex((p) => p.id === active.id);
+      const newIndex = palettes.findIndex((p) => p.id === over.id);
+      reorderPalettes(oldIndex, newIndex);
+    }
+  };
 
   return (
     <div className="flex h-full w-56 flex-col bg-sidebar-background relative z-10">
@@ -471,29 +539,40 @@ export function ColorSidebar() {
               <p className="text-[10px]">Try a different search term</p>
             </div>
           ) : (
-            <div className="space-y-0.5">
-              {filteredPalettes.map((palette) => (
-                <PaletteItem
-                  key={palette.id}
-                  palette={palette}
-                  isActive={activePaletteId === palette.id && viewMode === "palette"}
-                  isEditing={editingId === palette.id}
-                  editingName={editingName}
-                  onSelect={() => {
-                    setActivePalette(palette.id);
-                    setViewMode("palette");
-                  }}
-                  onStartEdit={() => startEditing(palette.id, palette.name)}
-                  onEditChange={setEditingName}
-                  onEditSave={() => handleRename(palette.id)}
-                  onEditCancel={() => {
-                    setEditingId(null);
-                    setEditingName("");
-                  }}
-                  onDelete={() => deletePalette(palette.id)}
-                />
-              ))}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={palettes.map((p) => p.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-0.5">
+                  {filteredPalettes.map((palette) => (
+                    <SortablePaletteItem
+                      key={palette.id}
+                      palette={palette}
+                      isActive={activePaletteId === palette.id && viewMode === "palette"}
+                      isEditing={editingId === palette.id}
+                      editingName={editingName}
+                      onSelect={() => {
+                        setActivePalette(palette.id);
+                        setViewMode("palette");
+                      }}
+                      onStartEdit={() => startEditing(palette.id, palette.name)}
+                      onEditChange={setEditingName}
+                      onEditSave={() => handleRename(palette.id)}
+                      onEditCancel={() => {
+                        setEditingId(null);
+                        setEditingName("");
+                      }}
+                      onDelete={() => deletePalette(palette.id)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </ScrollArea>
