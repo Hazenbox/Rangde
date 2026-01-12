@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ColorSwatch } from "@/components/color-swatch";
+import { ContrastPreview } from "@/components/contrast-preview";
 import { usePaletteStore } from "@/store/palette-store";
 import { STEPS, Step, StepScales, PaletteSteps, isValidHex, normalizeHex, getReadableTextColor, ScaleResult } from "@/lib/color-utils";
 import { cn } from "@/lib/utils";
@@ -349,9 +350,10 @@ interface ListScaleRowProps {
   cellTextColor: string;
   passesAllAA: boolean;
   showDots: boolean;
+  surfaceColor: string;
 }
 
-function ListScaleRow({ scale, label, step, displayStep, hasAlpha, alpha, cellTextColor, passesAllAA, showDots }: ListScaleRowProps) {
+function ListScaleRow({ scale, label, step, displayStep, hasAlpha, alpha, cellTextColor, passesAllAA, showDots, surfaceColor }: ListScaleRowProps) {
   const [copied, setCopied] = React.useState(false);
   
   const handleCopy = async () => {
@@ -437,6 +439,12 @@ function ListScaleRow({ scale, label, step, displayStep, hasAlpha, alpha, cellTe
       </TooltipTrigger>
       <TooltipContent side="right" className="w-64">
         <div className="space-y-2.5 text-xs text-primary-foreground">
+          {/* Contrast Preview */}
+          <ContrastPreview
+            foregroundColor={scale.blendedHex || scale.hex}
+            backgroundColor={surfaceColor}
+          />
+          
           <div className="font-medium">{step} / {label}</div>
           
           <div className="space-y-1">
@@ -489,10 +497,6 @@ function ListScaleRow({ scale, label, step, displayStep, hasAlpha, alpha, cellTe
                 <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-medium", scale.wcag.graphics.aa ? "bg-green-600 text-white" : "bg-red-500 text-white")}>AA</span>
               </div>
             </div>
-          </div>
-          
-          <div className="text-[10px] opacity-50">
-            Click to copy
           </div>
         </div>
       </TooltipContent>
@@ -607,6 +611,7 @@ function ListViewCard({ step, scales, paletteValue, showDots, paletteId, onUpdat
               cellTextColor={cellTextColor}
               passesAllAA={passesAllAA}
               showDots={showDots}
+              surfaceColor={surfaceColor}
             />
           );
         })}

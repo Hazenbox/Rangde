@@ -10,6 +10,7 @@ import {
 import { ScaleResult, getReadableTextColor } from "@/lib/color-utils";
 import { cn } from "@/lib/utils";
 import { colord } from "colord";
+import { ContrastPreview } from "@/components/contrast-preview";
 
 interface ColorSwatchProps {
   scale: ScaleResult;
@@ -147,6 +148,12 @@ export function ColorSwatch({ scale, label, showStep = false, compact = false, s
       </TooltipTrigger>
       <TooltipContent side="top" className="w-64">
         <div className="space-y-2.5 text-xs text-primary-foreground">
+          {/* Contrast Preview */}
+          <ContrastPreview
+            foregroundColor={scale.blendedHex || scale.hex}
+            backgroundColor={surfaceColor || '#ffffff'}
+          />
+          
           <div className="font-medium">{label}</div>
           
           <div className="space-y-1">
@@ -244,10 +251,6 @@ export function ColorSwatch({ scale, label, showStep = false, compact = false, s
                 </span>
               </div>
             </div>
-          </div>
-          
-          <div className="text-[10px] opacity-50">
-            Click to copy
           </div>
         </div>
       </TooltipContent>
