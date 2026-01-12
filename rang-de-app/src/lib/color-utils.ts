@@ -96,12 +96,12 @@ export function getStepFromIndex(index: number): Step | undefined {
 export function blendWithAlpha(fgHex: string, bgHex: string, alpha: number): string {
   const fg = colord(fgHex).toRgb();
   const bg = colord(bgHex).toRgb();
-  
+
   // True alpha compositing: result = fg * alpha + bg * (1 - alpha)
   const r = Math.round(fg.r * alpha + bg.r * (1 - alpha));
   const g = Math.round(fg.g * alpha + bg.g * (1 - alpha));
   const b = Math.round(fg.b * alpha + bg.b * (1 - alpha));
-  
+
   return colord({ r, g, b }).toHex();
 }
 
@@ -120,53 +120,25 @@ export function findAlphaForContrast(
   targetContrast: number,
   ensureMinimum: boolean = false
 ): number {
-  let low = 0;
-  let high = 1;
-  let iterations = 0;
-  const maxIterations = 50;
-  let bestAlpha = 1; // Default to full opacity if nothing found
+  // Linear search from 1% to 100% to find the lowest alpha that satisfies contrast
+  // This ensures we match exact user expectations (e.g., if 45% is 4.49, we go to 46%)
+  for (let alpha = 0.01; alpha <= 1.00; alpha += 0.01) {
+    // Round to avoid floating point errors (e.g. 0.560000000001)
+    const cleanAlpha = Math.round(alpha * 100) / 100;
 
-  while (high - low > 0.001 && iterations < maxIterations) {
-    const mid = (low + high) / 2;
-    const blended = blendWithAlpha(fgHex, bgHex, mid);
+    const blended = blendWithAlpha(fgHex, bgHex, cleanAlpha);
     const contrast = getContrastRatio(blended, bgHex);
 
+    // Strict compliance: Must be >= targetContrast
+    // Figma treats 4.49 as FAIL, so we must also treat it as FAIL.
+    // This ensures Gold 800 goes to 71% (pass) instead of 70% (fail).
     if (contrast >= targetContrast) {
-      // Found a valid alpha, try to find a smaller one (closer to surface)
-      bestAlpha = mid;
-      high = mid;
-    } else {
-      // Need more opacity for higher contrast
-      low = mid;
-    }
-    iterations++;
-  }
-
-  // If ensureMinimum is true, verify the result and adjust if needed
-  if (ensureMinimum) {
-    const blended = blendWithAlpha(fgHex, bgHex, bestAlpha);
-    const finalContrast = getContrastRatio(blended, bgHex);
-    
-    // If still below target, use full opacity
-    if (finalContrast < targetContrast) {
-      return 1;
+      return cleanAlpha;
     }
   }
 
-  // Round to 2 decimal places
-  let roundedAlpha = Math.round(bestAlpha * 100) / 100;
-
-  // Verify the rounded alpha still meets contrast requirements
-  const blendedWithRounded = blendWithAlpha(fgHex, bgHex, roundedAlpha);
-  const contrastWithRounded = getContrastRatio(blendedWithRounded, bgHex);
-
-  // If rounding down broke contrast, round up instead
-  if (contrastWithRounded < targetContrast) {
-    roundedAlpha = Math.ceil(bestAlpha * 100) / 100;
-  }
-
-  // Cap at 1.0
-  return Math.min(roundedAlpha, 1);
+  // If no alpha achieves the target contrast (should be handled by caller by checking full opacity first)
+  return 1;
 }
 
 /**
@@ -217,7 +189,7 @@ export function createScaleResult(
   // Use blendedHex for contrast calculation if provided, otherwise use hex
   const colorForContrast = blendedHex || hex;
   const contrastRatio = getContrastRatio(colorForContrast, surfaceHex);
-  
+
   return {
     hex,
     blendedHex,

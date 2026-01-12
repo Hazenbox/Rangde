@@ -43,10 +43,10 @@ const SCALE_DATA = [
     name: "Low",
     contrastTarget: "≥ 4.5:1",
     logic: [
-      "Uses the contrasting color with transparency to achieve exactly 4.5:1 contrast",
-      "Calculates the minimum alpha needed to meet WCAG AA for normal text",
-      "If full opacity contrast < 4.5:1, searches for a palette step that meets the requirement",
-      "Ensures accessibility for body text while maintaining subtlety",
+      "Uses the High contrasting color (step 200 or 2500)",
+      "Starts at 1% opacity and increases until contrast ≥ 4.5:1",
+      "Finds the lowest integer percentage (e.g., 57% -> 4.49 fail, 58% -> 4.51 pass)",
+      "If full opacity contrast < 4.5:1, searches for a palette step instead",
     ],
     exampleLight: "Surface 2400 → Low = step 200 at 56% opacity (4.5:1 contrast)",
     exampleDark: "Surface 200 → Low = step 2500 at 55% opacity (4.5:1 contrast)",
@@ -94,12 +94,13 @@ const SCALE_DATA = [
     contrastTarget: "Low (decorative)",
     logic: [
       "Provides subtle, low-contrast color for decorative elements",
-      "Steps 200-1100: Add 2 steps (e.g., 200 → 400)",
-      "Steps 1200-2500: Subtract 2 steps (e.g., 2400 → 2200)",
+      "Dark CC (High = 200): Subtract 200 from surface (e.g., 1500 → 1300)",
+      "Light CC (High = 2500): Add 200 to surface (e.g., 400 → 600)",
+      "Always moves away from the contrasting color by 2 steps",
       "Not intended for text; use for borders, dividers, backgrounds",
     ],
-    exampleLight: "Surface 2400 → Minimal = 2200",
-    exampleDark: "Surface 200 → Minimal = 400",
+    exampleLight: "Surface 2400 (CC=200) → Minimal = 2200 (2400 - 200)",
+    exampleDark: "Surface 200 (CC=2500) → Minimal = 400 (200 + 200)",
   },
 ];
 
@@ -200,8 +201,8 @@ export function HowItWorks() {
                 </thead>
                 <tbody>
                   {SCALE_DATA.map((scale, index) => (
-                    <tr 
-                      key={scale.name} 
+                    <tr
+                      key={scale.name}
                       className={index % 2 === 0 ? "bg-background" : "bg-muted/30"}
                     >
                       <td className="px-3 py-2 align-top">
@@ -246,17 +247,16 @@ export function HowItWorks() {
                 </thead>
                 <tbody>
                   {WCAG_DATA.map((item, index) => (
-                    <tr 
-                      key={`${item.type}-${item.level}`} 
+                    <tr
+                      key={`${item.type}-${item.level}`}
                       className={index % 2 === 0 ? "bg-background" : "bg-muted/30"}
                     >
                       <td className="px-3 py-2 font-medium">{item.type}</td>
                       <td className="px-3 py-2">
-                        <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                          item.level === "AA" 
-                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" 
-                            : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                        }`}>
+                        <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${item.level === "AA"
+                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                          : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                          }`}>
                           {item.level}
                         </span>
                       </td>
@@ -282,8 +282,8 @@ export function HowItWorks() {
                 </thead>
                 <tbody>
                   {TERMINOLOGY_DATA.map((item, index) => (
-                    <tr 
-                      key={item.term} 
+                    <tr
+                      key={item.term}
                       className={index % 2 === 0 ? "bg-background" : "bg-muted/30"}
                     >
                       <td className="px-3 py-2 font-medium">{item.term}</td>
@@ -333,9 +333,9 @@ export function HowItWorks() {
               <div className="rounded-lg border p-3 space-y-2">
                 <h4 className="text-xs font-semibold">Minimal Step Mapping</h4>
                 <ul className="text-[11px] text-muted-foreground space-y-1">
-                  <li>• Steps 200-1100: +2 steps (200→400, 600→800, etc.)</li>
-                  <li>• Steps 1200-2500: -2 steps (1200→1000, 2500→2300, etc.)</li>
-                  <li>• Always moves toward middle of the scale</li>
+                  <li>• Dark CC (High = 200): Surface - 200 (e.g., 1500→1300)</li>
+                  <li>• Light CC (High = 2500): Surface + 200 (e.g., 400→600)</li>
+                  <li>• Always moves away from the contrasting color</li>
                   <li>• Used for subtle, decorative elements only</li>
                 </ul>
               </div>
