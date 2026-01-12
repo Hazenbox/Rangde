@@ -162,17 +162,17 @@ function generateContrastSVG(
   const groupSpacing = 24;     // Increased spacing between step groups
   
   const colWidths = {
-    label: 100,    // Increased width
-    swatch: 24,    // Increased swatch spacing
-    hex: 90,       // Increased hex column width
-    contrast: 80   // Increased contrast column width
+    label: 120,    // Increased width
+    swatch: 32,    // Increased swatch spacing
+    hex: 110,      // Increased hex column width
+    contrast: 100  // Increased contrast column width
   };
   
   const filledSteps = steps.filter(step => generatedScales[step]);
   // Reverse order: 2500 to 200 (descending)
   const reversedSteps = [...filledSteps].reverse();
   
-  // Single column layout - calculate width
+  // Single column layout - calculate width (increased frame width)
   const groupWidth = colWidths.label + colWidths.swatch + colWidths.hex + colWidths.contrast;
   const width = padding * 2 + groupWidth;
   
@@ -749,7 +749,7 @@ function ListViewCard({ step, scales, paletteValue, showDots, paletteId, onUpdat
 export function ScalePreview() {
   const { generatedScales, activePaletteId, palettes, updatePaletteStep, updatePrimaryStep, isFullscreen, toggleFullscreen } = usePaletteStore();
   const [viewMode, setViewMode] = React.useState<ViewMode>("list");
-  const [sortOrder, setSortOrder] = React.useState<SortOrder>("asc");
+  const [sortOrder, setSortOrder] = React.useState<SortOrder>("desc");
   const [downloadOpen, setDownloadOpen] = React.useState(false);
   const [primaryOpen, setPrimaryOpen] = React.useState(false);
   const [showDots, setShowDots] = React.useState(true);
@@ -873,7 +873,7 @@ export function ScalePreview() {
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 <p className="text-xs">
-                  {copyContrastStatus === 'copied' ? 'Copied!' : 'Copy contrast values'}
+                  {copyContrastStatus === 'copied' ? 'Copied!' : 'Copy contrast values to figma'}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -929,7 +929,7 @@ export function ScalePreview() {
                       }
                     }}
                   >
-                    {copyStatus === 'copied' ? '✓ Copied!' : copyStatus === 'error' ? 'Failed' : 'Copy for Figma'}
+                    {copyStatus === 'copied' ? '✓ Copied!' : copyStatus === 'error' ? 'Failed' : 'Copy palette to figma'}
                   </button>
                 </div>
               </PopoverContent>
