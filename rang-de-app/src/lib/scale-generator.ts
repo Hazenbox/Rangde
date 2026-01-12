@@ -182,19 +182,16 @@ function generateBold(
 
   // Fallback: Check contrasting color directly
   const ccHex = palette[ccStep];
+  // Even if it fails the threshold, return it as the "best available" solid option
+  // instead of using alpha blending.
   if (ccHex && isValidHex(ccHex)) {
-    const ccContrast = getContrastRatio(ccHex, surfaceHex);
-    if (ccContrast >= 3.0) {
-      return createScaleResult(ccHex, surfaceHex, undefined, ccStep);
-    }
+    // We already checked it in the loop effectively (as the end limit),
+    // but this catches cases where the loop might have exited.
+    return createScaleResult(ccHex, surfaceHex, undefined, ccStep);
   }
 
-  // Last resort: Use alpha blending to guarantee 3.0:1 contrast
-  const pureContrastingColor = contrastDir === 'dark' ? '#000000' : '#ffffff';
-  const alpha = findAlphaForContrast(pureContrastingColor, surfaceHex, 3.0);
-  const blendedHex = blendWithAlpha(pureContrastingColor, surfaceHex, alpha);
-  const rgbaDisplay = hexToRgba(pureContrastingColor, alpha);
-  return createScaleResult(rgbaDisplay, surfaceHex, alpha, ccStep, blendedHex);
+  // Last resort (should rarely happen unless palette is broken): Return empty
+  return createEmptyScaleResult();
 }
 
 /**
@@ -249,19 +246,14 @@ function generateBoldA11Y(
 
   // Fallback: Check contrasting color directly
   const ccHex = palette[ccStep];
+  // Even if it fails the threshold, return it as the "best available" solid option
+  // instead of using alpha blending.
   if (ccHex && isValidHex(ccHex)) {
-    const ccContrast = getContrastRatio(ccHex, surfaceHex);
-    if (ccContrast >= 4.5) {
-      return createScaleResult(ccHex, surfaceHex, undefined, ccStep);
-    }
+    return createScaleResult(ccHex, surfaceHex, undefined, ccStep);
   }
 
-  // Last resort: Use alpha blending to guarantee 4.5:1 contrast
-  const pureContrastingColor = contrastDir === 'dark' ? '#000000' : '#ffffff';
-  const alpha = findAlphaForContrast(pureContrastingColor, surfaceHex, 4.5);
-  const blendedHex = blendWithAlpha(pureContrastingColor, surfaceHex, alpha);
-  const rgbaDisplay = hexToRgba(pureContrastingColor, alpha);
-  return createScaleResult(rgbaDisplay, surfaceHex, alpha, ccStep, blendedHex);
+  // Last resort: Return empty
+  return createEmptyScaleResult();
 }
 
 /**
