@@ -235,9 +235,9 @@ function generateBoldA11Y(
 
     const hex = palette[step];
     if (hex && isValidHex(hex)) {
-      const contrast = getContrastRatio(hex, surfaceHex);
-      if (contrast >= 4.5) {
-        return createScaleResult(hex, surfaceHex, undefined, step);
+    const contrast = getContrastRatio(hex, surfaceHex);
+    if (contrast >= 4.5) {
+      return createScaleResult(hex, surfaceHex, undefined, step);
       }
     }
 
