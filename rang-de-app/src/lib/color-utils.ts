@@ -50,10 +50,57 @@ export interface StepScales {
 }
 
 /**
+ * Manual implementation of WCAG 2.1 contrast ratio formula
+ * Matches Figma Contrast plugin exactly
+ */
+
+/**
+ * Convert sRGB channel to linear RGB
+ * Formula: 
+ * - If normalized <= 0.03928: linear = normalized / 12.92
+ * - Otherwise: linear = ((normalized + 0.055) / 1.055)^2.4
+ */
+function sRgbToLinearRgb(value: number): number {
+  const normalized = value / 255;
+
+  if (normalized <= 0.03928) {
+    return normalized / 12.92;
+  }
+
+  return Math.pow((normalized + 0.055) / 1.055, 2.4);
+}
+
+/**
+ * Get relative luminance from RGB components
+ * Formula: L = 0.2126 * R + 0.7152 * G + 0.0722 * B
+ * R, G, B are linear RGB values
+ */
+function getRelativeLuminance(r: number, g: number, b: number): number {
+  const rLinear = sRgbToLinearRgb(r);
+  const gLinear = sRgbToLinearRgb(g);
+  const bLinear = sRgbToLinearRgb(b);
+
+  return 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
+}
+
+/**
  * Get contrast ratio between two colors using WCAG 2.1 formula
+ * Using manual implementation to ensure 100% parity with design tools
  */
 export function getContrastRatio(color1: string, color2: string): number {
-  return colord(color1).contrast(color2);
+  const c1 = colord(color1).toRgb();
+  const c2 = colord(color2).toRgb();
+
+  const l1 = getRelativeLuminance(c1.r, c1.g, c1.b);
+  const l2 = getRelativeLuminance(c2.r, c2.g, c2.b);
+
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+
+  // (L1 + 0.05) / (L2 + 0.05)
+  // Standard rounding to 2 decimal places to match typical design tool display behavior
+  const ratio = (lighter + 0.05) / (darker + 0.05);
+  return parseFloat(ratio.toFixed(2));
 }
 
 /**
