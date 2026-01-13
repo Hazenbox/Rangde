@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { Palette, Workflow, HelpCircle, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -13,7 +14,7 @@ export function NavigationRail() {
   const navItems = [
     {
       id: "palette",
-      label: "Palettes",
+      label: "Surfaces",
       icon: Palette,
       onClick: () => setViewMode("palette"),
     },
@@ -32,56 +33,48 @@ export function NavigationRail() {
   ] as const;
 
   return (
-    <div className="flex w-20 flex-col items-center border-r bg-sidebar-background py-6 gap-4 z-20 h-full">
+    <div className="flex w-[72px] flex-col items-center border-r border-border/30 bg-sidebar-background pt-4 pb-6 gap-4 z-20 h-full">
       {/* App Logo */}
-      <div className="flex h-10 w-10 items-center justify-center mb-2">
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="text-muted-foreground/40 hover:text-foreground transition-colors duration-300"
-        >
-          <path
-            d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M12 16C14.2091 16 16 14.2091 16 12C16 9.79086 14.2091 8 12 8C9.79086 8 8 9.79086 8 12C8 14.2091 9.79086 16 12 16Z"
-            fill="currentColor"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+      <div className="flex h-auto w-full items-center justify-center mb-2 px-[14px]">
+        <Image
+          src="/logo-vertical.svg"
+          alt="Rang De"
+          width={26}
+          height={19}
+          className="w-auto h-auto"
+          priority
+        />
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex flex-1 flex-col justify-center items-center gap-4 w-full px-2">
+      <nav className="flex flex-1 flex-col justify-start items-center gap-3 w-full px-2">
         {navItems.map((item) => {
           const isActive = viewMode === item.id;
           return (
-            <Button
+            <div
               key={item.id}
-              variant="ghost"
-              className={cn(
-                "h-auto w-14 py-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all duration-200",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-              )}
+              className="flex flex-col items-center gap-1.5 cursor-pointer"
               onClick={item.onClick}
             >
-              <item.icon className={cn("h-4 w-4", isActive && "text-foreground")} />
-              <span className="text-[10px] font-medium leading-none tracking-tight">
+              <div
+                className={cn(
+                  "w-[52px] h-[30px] rounded-full flex items-center justify-center transition-all duration-200",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                )}
+              >
+                <item.icon className={cn("h-4 w-4", isActive && "text-foreground")} />
+              </div>
+              <span
+                className={cn(
+                  "text-[10px] font-medium leading-none tracking-tight text-center transition-colors duration-200",
+                  isActive ? "text-foreground" : "text-muted-foreground"
+                )}
+              >
                 {item.label}
               </span>
-            </Button>
+            </div>
           );
         })}
       </nav>

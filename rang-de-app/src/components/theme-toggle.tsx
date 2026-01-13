@@ -44,7 +44,7 @@ export function ThemeToggle() {
           <Button
             variant="secondary"
             size="icon"
-            className="h-7 w-7 rounded-full cursor-pointer bg-white dark:bg-white/10"
+            className="h-7 w-7 rounded-full cursor-pointer bg-white dark:bg-white/10 hover:bg-accent hover:scale-105 active:scale-95 transition-all duration-200"
             onClick={handleThemeToggle}
           >
             {theme === "dark" ? (
@@ -55,8 +55,8 @@ export function ThemeToggle() {
             <span className="sr-only">Toggle theme</span>
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom">
-          <p className="text-xs">{theme === "dark" ? "Light Mode" : "Dark Mode"}</p>
+        <TooltipContent side="bottom" className="text-[10px] px-2 py-1">
+          {theme === "dark" ? "Light Mode" : "Dark Mode"}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

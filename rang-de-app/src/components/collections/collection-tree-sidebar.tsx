@@ -28,7 +28,7 @@ export function CollectionTreeSidebar({ onBack, className }: CollectionTreeSideb
   }, [collectionNodes, searchQuery]);
 
   return (
-    <div className={cn("w-[200px] border-r bg-sidebar-background flex flex-col", className)}>
+    <div className={cn("w-[200px] bg-sidebar-background flex flex-col", className)}>
       {/* Header */}
       <div className="border-b p-2 space-y-2">
         {onBack && (
@@ -39,7 +39,7 @@ export function CollectionTreeSidebar({ onBack, className }: CollectionTreeSideb
             onClick={onBack}
           >
             <ChevronLeft className="h-3 w-3 mr-1.5" />
-            Back to Palettes
+            Back to Surfaces
           </Button>
         )}
         <div className="relative">

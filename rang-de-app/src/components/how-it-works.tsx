@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Copy, Check, Search } from "lucide-react";
 import { oklchToHex } from "@/lib/color-utils";
+import { cn } from "@/lib/utils";
 import colorPalettesData from "@/lib/color-palettes.json";
 
 const SCALE_DATA = [
@@ -178,6 +178,7 @@ const TERMINOLOGY_DATA = [
 ];
 
 export function HowItWorks() {
+  const [selectedView, setSelectedView] = React.useState<"logic" | "colors">("logic");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [copiedValues, setCopiedValues] = React.useState<Record<string, boolean>>({});
 
@@ -205,33 +206,49 @@ export function HowItWorks() {
   };
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <div>
-          <h2 className="font-semibold">How It Works</h2>
+    <div className="flex h-full">
+      {/* Sidebar */}
+      <div className="flex h-full w-60 flex-col bg-sidebar-background relative z-10">
+        <div className="flex items-center justify-between px-3 pt-5 pb-3 h-14">
+          <h2 className="text-[14px] font-semibold">How It Works</h2>
+        </div>
+        
+        <div className="p-2">
+          <button
+            onClick={() => setSelectedView("logic")}
+            className={cn(
+              "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
+              selectedView === "logic"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "hover:bg-sidebar-accent/50"
+            )}
+          >
+            Logic
+          </button>
+          <button
+            onClick={() => setSelectedView("colors")}
+            className={cn(
+              "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors mt-1",
+              selectedView === "colors"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "hover:bg-sidebar-accent/50"
+            )}
+          >
+            Color Source
+          </button>
         </div>
       </div>
 
-      <Tabs defaultValue="logic" className="flex flex-1 flex-col overflow-hidden">
-        <div className="border-b flex items-end -mt-px">
-          <TabsList className="h-10 w-auto bg-transparent p-0 gap-1">
-            <TabsTrigger 
-              value="logic" 
-              className="text-xs px-3 py-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground"
-            >
-              Logic
-            </TabsTrigger>
-            <TabsTrigger 
-              value="colors" 
-              className="text-xs px-3 py-2 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground"
-            >
-              Color Source
-            </TabsTrigger>
-          </TabsList>
+      {/* Main Content */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pt-5 pb-3">
+          <h2 className="text-[14px] font-semibold">
+            {selectedView === "logic" ? "Scale Generation Logic" : "Color Palettes"}
+          </h2>
         </div>
 
-        <TabsContent value="logic" className="flex-1 m-0 overflow-hidden">
+        {selectedView === "logic" ? (
           <ScrollArea className="h-full">
             <div className="p-4 space-y-8">
           {/* Scale Logic Table */}
@@ -390,24 +407,23 @@ export function HowItWorks() {
           </section>
             </div>
           </ScrollArea>
-        </TabsContent>
-
-        <TabsContent value="colors" className="flex-1 m-0 overflow-hidden flex flex-col">
-          {/* Sticky Search Bar */}
-          <div className="p-4 pb-2 bg-background sticky top-0 z-10">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Source: v1010.json"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-9"
-              />
+        ) : (
+          <div className="flex flex-col flex-1 overflow-hidden">
+            {/* Sticky Search Bar */}
+            <div className="p-4 pb-2 bg-background sticky top-0 z-10">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Source: v1010.json"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 h-9"
+                />
+              </div>
             </div>
-          </div>
 
-          <ScrollArea className="flex-1">
+            <ScrollArea className="flex-1">
             <div className="p-4">
               {/* Color Palettes Table */}
               {(() => {
@@ -578,8 +594,9 @@ export function HowItWorks() {
               })()}
             </div>
           </ScrollArea>
-        </TabsContent>
-      </Tabs>
+        </div>
+        )}
+      </div>
     </div>
   );
 }

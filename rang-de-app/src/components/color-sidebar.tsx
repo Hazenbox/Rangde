@@ -383,7 +383,7 @@ function SortablePaletteItem({
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[400px]" onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
-            <DialogTitle>Delete Palette</DialogTitle>
+            <DialogTitle>Delete Surface</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete &quot;{palette.name}&quot;? This action cannot be undone.
             </DialogDescription>
@@ -525,10 +525,10 @@ export function ColorSidebar() {
   // Render collections mode sidebar
   if (viewMode === "collections") {
     return (
-      <div className="flex h-full w-60 flex-col bg-sidebar-background relative z-10 border-r">
+      <div className="flex h-full w-60 flex-col bg-sidebar-background relative z-10">
         {/* Header */}
-        <div className="flex items-center justify-between px-3 py-3 border-b h-14">
-          <h2 className="text-sm font-semibold">Collections</h2>
+        <div className="flex items-center justify-between px-3 pt-5 pb-3 h-14">
+          <h2 className="text-[14px] font-semibold">Collections</h2>
           
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <TooltipProvider delayDuration={300}>
@@ -540,21 +540,21 @@ export function ColorSidebar() {
                     </Button>
                   </DialogTrigger>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p className="text-xs">Create Palette</p>
+                <TooltipContent side="bottom" className="text-[10px] px-2 py-1">
+                  Create Surface
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create New Palette</DialogTitle>
+                <DialogTitle>Create New Surface</DialogTitle>
                 <DialogDescription>
-                  Enter a name for your new color palette.
+                  Enter a name for your new color surface.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Palette Name</Label>
+                  <Label htmlFor="name">Surface Name</Label>
                   <Input
                     id="name"
                     value={newPaletteName}
@@ -568,7 +568,7 @@ export function ColorSidebar() {
               </div>
               <DialogFooter>
                 <Button onClick={handleCreate} disabled={!newPaletteName.trim()}>
-                  Create Palette
+                  Create Surface
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -603,7 +603,7 @@ export function ColorSidebar() {
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search palettes..."
+              placeholder="Search surfaces..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-8 pl-8 text-xs bg-background/50"
@@ -616,7 +616,7 @@ export function ColorSidebar() {
           <div className="p-2 space-y-1">
             {palettes.length === 0 ? (
               <div className="text-[10px] text-muted-foreground text-center py-4">
-                No palettes available
+                No surfaces available
               </div>
             ) : (
               palettes
@@ -734,9 +734,9 @@ export function ColorSidebar() {
   }
 
   return (
-    <div className="flex h-full w-60 flex-col bg-sidebar-background relative z-10 border-r">
-      <div className="flex items-center justify-between px-3 py-3 border-b h-14">
-        <h2 className="text-sm font-semibold">Palettes</h2>
+    <div className="flex h-full w-60 flex-col bg-sidebar-background relative z-10">
+      <div className="flex items-center justify-between px-3 pt-5 pb-3 h-14">
+        <h2 className="text-[14px] font-semibold">Surfaces</h2>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <TooltipProvider delayDuration={300}>
             <Tooltip>
@@ -747,21 +747,21 @@ export function ColorSidebar() {
                   </Button>
                 </DialogTrigger>
               </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p className="text-xs">Create Palette</p>
+              <TooltipContent side="bottom" className="text-[10px] px-2 py-1">
+                Create Surface
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Palette</DialogTitle>
+              <DialogTitle>Create New Surface</DialogTitle>
               <DialogDescription>
-                Enter a name for your new color palette.
+                Enter a name for your new color surface.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Palette Name</Label>
+                <Label htmlFor="name">Surface Name</Label>
                 <Input
                   id="name"
                   value={newPaletteName}
@@ -775,7 +775,7 @@ export function ColorSidebar() {
             </div>
             <DialogFooter>
               <Button onClick={handleCreate} disabled={!newPaletteName.trim()}>
-                Create Palette
+                Create Surface
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -788,7 +788,7 @@ export function ColorSidebar() {
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search palettes..."
+            placeholder="Search surfaces..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-8 pl-8 text-xs bg-background/50"
@@ -800,12 +800,12 @@ export function ColorSidebar() {
         <div className="px-2 py-1">
           {palettes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-6 text-center text-sm text-muted-foreground">
-              <p className="text-xs">No palettes yet</p>
+              <p className="text-xs">No surfaces yet</p>
               <p className="text-[10px]">Click + to create one</p>
             </div>
           ) : filteredPalettes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-6 text-center text-sm text-muted-foreground">
-              <p className="text-xs">No palettes found</p>
+              <p className="text-xs">No surfaces found</p>
               <p className="text-[10px]">Try a different search term</p>
             </div>
           ) : (

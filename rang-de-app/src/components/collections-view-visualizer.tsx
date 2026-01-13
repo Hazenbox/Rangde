@@ -14,7 +14,7 @@ import ReactFlow, {
   MiniMap,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Plus, Download, X, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
+import { Plus, Download, X, RefreshCw, Maximize2, Minimize2, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCollectionsStore } from "@/store/collections-store";
@@ -298,54 +298,10 @@ function CollectionsViewVisualizerContent() {
       {/* Main Canvas */}
       <div className="flex-1 flex flex-col relative">
         {/* Header */}
-        <div className="flex items-center justify-between border-b px-4 py-3 flex-shrink-0">
-          {/* Left: Title & Toolbar */}
+        <div className="flex items-center justify-between px-4 pt-5 pb-3 flex-shrink-0">
+          {/* Left: Title */}
           <div className="flex items-center gap-4">
-            <h2 className="font-semibold">Collections</h2>
-            
-            <div className="flex items-center gap-1.5">
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={() => setNodeDialogOpen(true)}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1.5 opacity-50" />
-                  Collection
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p className="text-xs">Create collection (Ctrl+N)</p>
-              </TooltipContent>
-            </Tooltip>
-
-            <ModeSelector
-              modes={allModes}
-              visibleModes={visibleModes}
-              onVisibleModesChange={setVisibleModes}
-            />
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={applyAutoLayout}
-                  disabled={totalVariables === 0}
-                >
-                  <RefreshCw className="h-3.5 w-3.5 opacity-50" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p className="text-xs">Re-layout (Ctrl+L)</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-            </div>
+            <h2 className="text-[14px] font-semibold">Collections</h2>
           </div>
 
           {/* Right: Stats & Actions */}
@@ -368,8 +324,8 @@ function CollectionsViewVisualizerContent() {
                     <Download className="h-3.5 w-3.5 opacity-50" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p className="text-xs">Export JSON (Ctrl+E)</p>
+                <TooltipContent side="bottom" className="text-[10px] px-2 py-1">
+                  Export JSON (Ctrl+E)
                 </TooltipContent>
               </Tooltip>
 
@@ -388,24 +344,8 @@ function CollectionsViewVisualizerContent() {
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p className="text-xs">{isFullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}</p>
-                </TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() => setViewMode('palette')}
-                  >
-                    <X className="h-3.5 w-3.5 opacity-50" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p className="text-xs">Close (Esc)</p>
+                <TooltipContent side="bottom" className="text-[10px] px-2 py-1">
+                  {isFullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

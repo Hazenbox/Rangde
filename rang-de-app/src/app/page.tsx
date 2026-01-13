@@ -54,7 +54,7 @@ export default function Home() {
               <Palette className="mx-auto h-16 w-16 text-muted-foreground/50" />
               <h2 className="text-xl font-semibold">Welcome to Rangule</h2>
               <p className="text-muted-foreground">
-                Create a new palette from the sidebar to get started. Define your
+                Create a new surface from the sidebar to get started. Define your
                 base colors (steps 200-2500) and we&apos;ll automatically generate
                 accessible color scales.
               </p>

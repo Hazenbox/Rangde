@@ -706,8 +706,8 @@ function ListScaleRow({ scale, label, step, displayStep, hasAlpha, alpha, cellTe
           </div>
         </button>
       </TooltipTrigger>
-      <TooltipContent side="right" className="w-64">
-        <div className="space-y-2.5 text-xs text-primary-foreground">
+      <TooltipContent side="right" className="w-64 px-2 py-1.5">
+        <div className="space-y-2 text-[10px] text-primary-foreground">
           {/* Contrast Preview */}
           <ContrastPreview
             foregroundColor={scale.blendedHex || scale.hex}
@@ -719,7 +719,7 @@ function ListScaleRow({ scale, label, step, displayStep, hasAlpha, alpha, cellTe
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-4">
               <span className="opacity-70">Hex</span>
-              <code className="font-mono text-xs">{scale.hex.toUpperCase()}</code>
+              <code className="font-mono text-[10px]">{scale.hex.toUpperCase()}</code>
             </div>
             
             {scale.alpha !== undefined && (
@@ -927,7 +927,7 @@ export function ScalePreview() {
   if (!activePaletteId || !generatedScales || !activePalette) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
-        <p>Select a palette to see generated scales</p>
+        <p>Select a surface to see generated scales</p>
       </div>
     );
   }
@@ -935,9 +935,9 @@ export function ScalePreview() {
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center justify-between px-4 pt-5 pb-3">
           <div>
-            <h2 className="font-semibold">{activePalette.name}</h2>
+            <h2 className="text-[14px] font-semibold">{activePalette.name}</h2>
           </div>
           
           {/* Action buttons */}

@@ -58,7 +58,7 @@ export function CollectionPaletteSidebar({ className }: CollectionPaletteSidebar
   const activePalette = palettes.find(p => p.id === activePaletteId);
 
   return (
-    <div className={cn("w-[200px] border-r bg-sidebar-background flex flex-col", className)}>
+    <div className={cn("w-[200px] bg-sidebar-background flex flex-col", className)}>
       {/* Collection Header (when selected) */}
       {selectedCollection && (
         <div className="border-b px-2 py-1.5 flex items-center justify-between bg-primary/5">
@@ -80,7 +80,7 @@ export function CollectionPaletteSidebar({ className }: CollectionPaletteSidebar
       )}
 
       {/* Tabs */}
-      <div className="border-b p-2 flex gap-1">
+      <div className="p-2 flex gap-1">
         <button
           className={cn(
             "flex-1 px-2 py-1 text-[11px] font-medium rounded transition-colors",
@@ -90,7 +90,7 @@ export function CollectionPaletteSidebar({ className }: CollectionPaletteSidebar
           )}
           onClick={() => setSelectedTab('palettes')}
         >
-          Palettes
+          Surfaces
         </button>
         <button
           className={cn(
@@ -106,7 +106,7 @@ export function CollectionPaletteSidebar({ className }: CollectionPaletteSidebar
       </div>
 
       {/* Search Bar */}
-      <div className="border-b px-2 py-2">
+      <div className="px-2 py-2">
         <Input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -118,11 +118,11 @@ export function CollectionPaletteSidebar({ className }: CollectionPaletteSidebar
       {/* Content */}
       <ScrollArea className="flex-1">
         {selectedTab === 'palettes' ? (
-          // Palettes view
+          // Surfaces view
           <div className="p-2 space-y-1">
             {palettes.length === 0 ? (
               <div className="text-[10px] text-muted-foreground text-center py-4">
-                No palettes available
+                No surfaces available
               </div>
             ) : (
               palettes
@@ -232,7 +232,7 @@ export function CollectionPaletteSidebar({ className }: CollectionPaletteSidebar
               })
             ) : (
               <div className="text-[10px] text-muted-foreground text-center py-4">
-                {!activePalette ? 'Select a palette from the main view' : 'No scales generated'}
+                {!activePalette ? 'Select a surface from the main view' : 'No scales generated'}
               </div>
             )}
           </div>
