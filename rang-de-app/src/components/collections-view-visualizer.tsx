@@ -14,14 +14,13 @@ import ReactFlow, {
   MiniMap,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Plus, Download, X, LayoutGrid, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
+import { Plus, Download, X, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCollectionsStore } from "@/store/collections-store";
 import { usePaletteStore } from "@/store/palette-store";
 import { VariableNodeVisualizer } from "@/components/collections/variable-node-visualizer";
 import { CollectionNodeDialog } from "@/components/collections/collection-node-dialog";
-import { CollectionSidebar } from "@/components/collections/collection-sidebar";
 import { ModeSelector } from "@/components/collections/mode-selector";
 import { downloadFigmaExport } from "@/lib/collections-exporter";
 import { autoLayoutVariables } from "@/lib/auto-layout";
@@ -47,7 +46,6 @@ function CollectionsViewVisualizerContent() {
   const [visibleModes, setVisibleModes] = React.useState<string[]>([]);
   const [autoLayoutEnabled, setAutoLayoutEnabled] = React.useState(true);
   const [selectedCollectionFilter, setSelectedCollectionFilter] = React.useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   // Get all unique modes across collections
   const allModes = React.useMemo(() => {
@@ -297,17 +295,6 @@ function CollectionsViewVisualizerContent() {
 
   return (
     <div className="flex h-full w-full overflow-hidden">
-      {/* Collection Sidebar */}
-      {sidebarOpen && (
-        <CollectionSidebar
-          collections={collectionNodes}
-          selectedCollectionId={selectedCollectionFilter}
-          onSelectCollection={setSelectedCollectionFilter}
-          onCreateCollection={() => setNodeDialogOpen(true)}
-          onClose={() => setSidebarOpen(false)}
-        />
-      )}
-
       {/* Main Canvas */}
       <div className="flex-1 flex flex-col relative">
         {/* Header */}
@@ -318,22 +305,6 @@ function CollectionsViewVisualizerContent() {
             
             <div className="flex items-center gap-1.5">
           <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                >
-                  <LayoutGrid className="h-3.5 w-3.5 opacity-50" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p className="text-xs">Toggle collections sidebar</p>
-              </TooltipContent>
-            </Tooltip>
-
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

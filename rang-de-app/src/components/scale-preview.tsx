@@ -826,7 +826,7 @@ function ListViewCard({ step, scales, paletteValue, showDots, paletteId, onUpdat
     <div className="group flex flex-col rounded-lg border overflow-hidden">
       {/* Header with step number and always-visible input */}
       <div 
-        className="flex items-center justify-between px-3 h-8 cursor-pointer"
+        className="flex items-center justify-between pl-3 pr-2 h-8 cursor-pointer"
         style={{ backgroundColor: hasValue ? surfaceColor : undefined }}
       >
         <span 
@@ -839,7 +839,7 @@ function ListViewCard({ step, scales, paletteValue, showDots, paletteId, onUpdat
           value={localValue}
           onChange={handleChange}
           className={cn(
-            "h-5 w-20 font-mono text-[9px] cursor-pointer rounded-sm px-1.5 border-transparent bg-transparent text-right",
+            "h-5 w-16 font-mono text-xs cursor-pointer rounded-sm px-0.5 border-transparent bg-transparent text-right",
             "focus:border-foreground focus:bg-background/50",
             "group-hover:border-foreground/60 group-hover:bg-background/30",
             !isValid && "border-destructive focus-visible:ring-destructive"
