@@ -88,8 +88,11 @@ function getRelativeLuminance(r: number, g: number, b: number): number {
  * Using manual implementation to ensure 100% parity with design tools
  */
 export function getContrastRatio(color1: string, color2: string): number {
-  const c1 = colord(color1).toRgb();
-  const c2 = colord(color2).toRgb();
+  const c1Input = color1.startsWith('oklch') ? oklchToHex(color1) : color1;
+  const c2Input = color2.startsWith('oklch') ? oklchToHex(color2) : color2;
+
+  const c1 = colord(c1Input).toRgb();
+  const c2 = colord(c2Input).toRgb();
 
   const l1 = getRelativeLuminance(c1.r, c1.g, c1.b);
   const l2 = getRelativeLuminance(c2.r, c2.g, c2.b);
@@ -142,8 +145,11 @@ export function getStepFromIndex(index: number): Step | undefined {
  * Returns the resulting opaque color
  */
 export function blendWithAlpha(fgHex: string, bgHex: string, alpha: number): string {
-  const fg = colord(fgHex).toRgb();
-  const bg = colord(bgHex).toRgb();
+  const fgInput = fgHex.startsWith('oklch') ? oklchToHex(fgHex) : fgHex;
+  const bgInput = bgHex.startsWith('oklch') ? oklchToHex(bgHex) : bgHex;
+
+  const fg = colord(fgInput).toRgb();
+  const bg = colord(bgInput).toRgb();
 
   // True alpha compositing: result = fg * alpha + bg * (1 - alpha)
   const r = Math.round(fg.r * alpha + bg.r * (1 - alpha));

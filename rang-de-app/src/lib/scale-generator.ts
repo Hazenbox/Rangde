@@ -104,9 +104,9 @@ function generateMedium(
   const targetStep: Step = contrastDir === 'dark' ? 200 : 2500;
   const ccHex = palette[targetStep];
 
-  // Midpoint between 1.0 (100%) and Low's alpha, using floor to round down
-  // Formula: alpha = (100 + Low_alpha_percent) / 2, then floor
-  const alpha = Math.floor(((1.0 + lowAlpha) / 2) * 100) / 100;
+  // Midpoint between 1.0 (100%) and Low's alpha, using round to avoid float precision issues
+  // Formula: alpha = (100 + Low_alpha_percent) / 2, then round
+  const alpha = Math.round(((1.0 + lowAlpha) / 2) * 100) / 100;
   const blendedHex = blendWithAlpha(ccHex, surfaceHex, alpha);
 
   // Store rgba for display, but keep blendedHex for contrast calculation

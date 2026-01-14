@@ -1,66 +1,66 @@
-High:
-Contrasting colour (2500 or 200).
+# Rang De Color Logic
 
-Medium:
-Contrasting colour, transaparancy between High & Medium.
+## Precise Contrast Calculation
+Rang De uses a consistent, strict mathematical approach to ensure WCAG 2.1 compliance.
 
-Low:
-Contrasting colour, transaparancy decreased to reach 4.5:1 contrast.
+### 1. Truncation Logic (The Floor Method)
+To ensure 100% mathematical certainty, all contrast ratios are **truncated (floored)** to two decimal places.
+- **Formula:** `Math.floor(ratio * 100) / 100`
+- **Impact:** A ratio of `4.499` becomes `4.49` (Fail). This forces the algorithm to select a safer, higher-contrast step or alpha instead of "rounding up" to compliance.
 
-Heavy:
-When contrasting colour is dark: 
-    Colour step between bold and step 200
-    exeption: never above step 800
-When contrasting colour is light: 
-    same as BoldA11Y
-    exeption: when the colour is more that 3    steps away from the base value, then it goes to step 2500
+---
 
-Bold:
-Base value. When contrast is < 3.0:1, then next colour step with contrast >= 3.0:1.
+## Scale Generation Rules
 
-BoldA11Y:
-Base value. When contrast is below 4.5:1, then next colour step with contrast >= 4.5:1.
+### High
+- **Purpose:** Maximum contrast for primary text.
+- **Logic:** Uses the most contrasting color in the palette at 100% opacity.
+- **Selection:** 
+  - Light Surface (e.g., 2400) → High = Step 200 (Darkest)
+  - Dark Surface (e.g., 400) → High = Step 2500 (Lightest)
 
-Minimal:
-If CC dark then –2 steps
-if CC light then +2 steps 
-CC means Contrasting color and -2 means if surface is 2400 then minimal is 2200 is CC is dark
+### Medium
+- **Purpose:** Balanced contrast for secondary elements.
+- **Logic:** Uses the same contrasting color as High, but with reduced opacity.
+- **Formula:** `alpha = round((1.0 + Low_alpha) / 2)` (Midpoint between 100% and Low's alpha).
 
-Contrast 4.5:1 or more is dark color and less than that is light color
+### Low
+- **Purpose:** Minimum decorative readable contrast.
+- **Target:** ≥ 4.5:1 (WCAG AA).
+- **Logic:** 
+  - Uses the High contrasting color.
+  - Linearly searches from 1% alpha upwards until truncated contrast ≥ 4.5:1.
 
-Surface	Step 2500 (if base is light) or Step 200 (if base is dark)
-Medium	Contrasting color with alpha = midpoint between 1.0 and Low's alpha
-Bold	Start at base step; if contrast < 3.0:1 → move towards Surface until >= 3.0:1
-BoldA11Y	Start at base step; if contrast < 4.5:1 → move towards Surface until >= 4.5:1
-Heavy	Dark CC: (Bold_step + 200) / 2, capped at 800. Light CC: same as BoldA11Y (if >3 steps away → use 2500)
-Minimal	Dark CC: base - 200. Light CC: base + 200
+### Bold
+- **Purpose:** Strong emphasis for headings/UI.
+- **Target:** ≥ 3.0:1 (WCAG Large Text).
+- **Logic:** 
+  - Starts from the user-selected **Base Step** (default 600).
+  - If contrast < 3.0:1, moves one step at a time toward the surface until truncated contrast ≥ 3.0:1.
 
+### Bold A11Y
+- **Purpose:** Fully accessible emphasis.
+- **Target:** ≥ 4.5:1 (WCAG Normal Text).
+- **Logic:** 
+  - Starts from the user-selected **Base Step**.
+  - If contrast < 4.5:1, moves toward the surface until truncated contrast ≥ 4.5:1.
+  - **Note:** Due to truncation logic, steps with raw ratios like `4.498` are rejected.
 
+### Heavy
+- **Purpose:** Deep emphasis.
+- **Logic (Dark CC):** `(Bold_step + 200) / 2`, capped at **Step 800**.
+- **Logic (Light CC):** Same as BoldA11Y.
+  - **Exception:** If the resulting step is >3 steps away from the surface, it defaults to **Step 2500**.
 
-minimals of following based color should be using the steps below
-200 base color -  400 step
-300 - 500
-400 - 600
-500 - 700
-600 - 800
-700 - 900
-800 -1000
-900 - 1100 
-1000 - 1200
-1100 - 1300
-1200 - 1000
-1300 - 1100
-1400 - 1200
-1500 - 1300
-1600 - 1400
-1700 - 1500
-1800 - 1600
-1900 - 1700
-2000 - 1800
-2100 - 1900
-2200 - 2000
-2300 - 2100
-2400 - 2200
-2500 - 2300
+### Minimal
+- **Purpose:** Subtle decoration.
+- **Logic:** Always moves 2 steps (200 units) away from the surface.
+  - **Dark CC (Light Surface):** `Surface - 200` (e.g., 2400 → 2200).
+  - **Light CC (Dark Surface):** `Surface + 200` (e.g., 400 → 600).
 
+---
 
+## Implementation Details
+- **Contrast Formula:** Standard WCAG 2.1 Luminance-based contrast: `(L1 + 0.05) / (L2 + 0.05)`.
+- **Gamut Mapping:** Palette colors are defined in OKLCH but normalized to Hex for precise blending and contrast calculations.
+- **Blending:** Foreground color is blended over the background using the formula: `final = fg * alpha + bg * (1 - alpha)`.
