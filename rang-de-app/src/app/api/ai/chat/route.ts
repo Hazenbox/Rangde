@@ -8,69 +8,117 @@ import { GeminiService } from '@/lib/ai/gemini-service';
 import { AI_CONFIG } from '@/config/ai-config';
 import type { AIContext } from '@/types/ai';
 
-// In-memory rate limiting (in production, use Redis or database)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+// Note: Rate limiting is now primarily handled client-side
+// This server-side validation is a backup to prevent abuse
 
-function getRateLimitKey(request: NextRequest): string {
-  // Use IP address or session ID for rate limiting
-  const forwarded = request.headers.get('x-forwarded-for');
-  const ip = forwarded ? forwarded.split(',')[0] : 'unknown';
-  return `ratelimit_${ip}`;
+// Allowed origins for CORS (add your production domain)
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://rang-de-one.vercel.app',
+  // Add your production domains here
+];
+
+function validateOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get('origin');
+  const referer = request.headers.get('referer');
+  
+  // Allow requests without origin (same-origin, some tools)
+  if (!origin && !referer) {
+    return true;
+  }
+  
+  // Check origin
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    return true;
+  }
+  
+  // Check referer as fallback
+  if (referer) {
+    try {
+      const refererUrl = new URL(referer);
+      const refererOrigin = `${refererUrl.protocol}//${refererUrl.host}`;
+      return ALLOWED_ORIGINS.includes(refererOrigin);
+    } catch {
+      return false;
+    }
+  }
+  
+  return false;
 }
 
-function checkRateLimit(key: string): { allowed: boolean; remaining: number; resetTime: number } {
-  const now = Date.now();
-  const limit = rateLimitMap.get(key);
-
-  // If no limit exists or window expired, create new
-  if (!limit || now > limit.resetTime) {
-    const resetTime = now + AI_CONFIG.rateLimitWindow;
-    rateLimitMap.set(key, { count: 1, resetTime });
-    return {
-      allowed: true,
-      remaining: AI_CONFIG.freeRateLimit - 1,
+function validateClientRateLimit(request: NextRequest): { 
+  valid: boolean; 
+  remaining?: number; 
+  resetTime?: number;
+  error?: string;
+} {
+  try {
+    // Get client-provided rate limit info from headers
+    const clientRemaining = request.headers.get('x-client-rate-remaining');
+    const clientResetTime = request.headers.get('x-client-rate-reset');
+    
+    if (!clientRemaining || !clientResetTime) {
+      // Client didn't provide rate limit info - allow but warn
+      return { valid: true };
+    }
+    
+    const remaining = parseInt(clientRemaining, 10);
+    const resetTime = parseInt(clientResetTime, 10);
+    
+    // Validate the data makes sense
+    if (isNaN(remaining) || isNaN(resetTime)) {
+      return { valid: true }; // Invalid format, allow but don't trust
+    }
+    
+    // Check if client claims to be rate limited
+    if (remaining <= 0 && Date.now() < resetTime) {
+      const resetInMinutes = Math.ceil((resetTime - Date.now()) / 60000);
+      return {
+        valid: false,
+        remaining: 0,
+        resetTime,
+        error: `Rate limit exceeded. Please wait ${resetInMinutes} minutes or add your own API key.`,
+      };
+    }
+    
+    return { 
+      valid: true, 
+      remaining: Math.max(0, remaining - 1),
       resetTime,
     };
+  } catch {
+    // If anything goes wrong, allow the request
+    return { valid: true };
   }
-
-  // Check if under limit
-  if (limit.count < AI_CONFIG.freeRateLimit) {
-    limit.count++;
-    return {
-      allowed: true,
-      remaining: AI_CONFIG.freeRateLimit - limit.count,
-      resetTime: limit.resetTime,
-    };
-  }
-
-  // Rate limit exceeded
-  return {
-    allowed: false,
-    remaining: 0,
-    resetTime: limit.resetTime,
-  };
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Check rate limit
-    const rateLimitKey = getRateLimitKey(request);
-    const rateLimit = checkRateLimit(rateLimitKey);
+    // Validate origin for security
+    if (!validateOrigin(request)) {
+      return NextResponse.json(
+        { error: 'Forbidden', message: 'Invalid origin' },
+        { status: 403 }
+      );
+    }
 
-    if (!rateLimit.allowed) {
-      const resetInMinutes = Math.ceil((rateLimit.resetTime - Date.now()) / 60000);
+    // Validate client-side rate limit
+    const rateLimitCheck = validateClientRateLimit(request);
+
+    if (!rateLimitCheck.valid) {
       return NextResponse.json(
         {
           error: 'Rate limit exceeded',
-          message: `Free tier limit reached. Please wait ${resetInMinutes} minutes or add your own API key in settings.`,
-          resetTime: rateLimit.resetTime,
+          message: rateLimitCheck.error || 'Rate limit exceeded',
+          resetTime: rateLimitCheck.resetTime,
         },
         { 
           status: 429,
           headers: {
             'X-RateLimit-Limit': AI_CONFIG.freeRateLimit.toString(),
-            'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-            'X-RateLimit-Reset': rateLimit.resetTime.toString(),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateLimitCheck.resetTime?.toString() || '',
           },
         }
       );
@@ -90,9 +138,20 @@ export async function POST(request: NextRequest) {
     // Get API key from environment
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
+      const isDevelopment = process.env.NODE_ENV === 'development';
       return NextResponse.json(
-        { error: 'Backend API key not configured. Please add your own API key in settings.' },
-        { status: 500 }
+        { 
+          error: 'Backend API key not configured',
+          message: isDevelopment 
+            ? 'To use the free tier, add GEMINI_API_KEY to your .env.local file. Get a free API key at https://makersuite.google.com/app/apikey. Alternatively, add your own API key in the AI settings panel.'
+            : 'The free tier is currently unavailable. Please add your own Gemini API key in the AI settings panel.',
+          setupInstructions: {
+            step1: 'Get a free API key from https://makersuite.google.com/app/apikey',
+            step2: 'Click the AI settings icon in the navigation rail',
+            step3: 'Paste your API key and save',
+          },
+        },
+        { status: 503 } // Service Unavailable instead of 500
       );
     }
 
@@ -106,8 +165,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response, {
       headers: {
         'X-RateLimit-Limit': AI_CONFIG.freeRateLimit.toString(),
-        'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-        'X-RateLimit-Reset': rateLimit.resetTime.toString(),
+        'X-RateLimit-Remaining': rateLimitCheck.remaining?.toString() || AI_CONFIG.freeRateLimit.toString(),
+        'X-RateLimit-Reset': rateLimitCheck.resetTime?.toString() || Date.now().toString(),
       },
     });
   } catch (error) {

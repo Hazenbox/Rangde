@@ -273,7 +273,7 @@ export function CollectionNode({ data, id, selected }: NodeProps<CollectionNodeD
                 </div>
               )}
               {data.isParent && (
-                <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" title="Parent Collection" />
+                <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
               )}
               {data.layer && (
                 <span

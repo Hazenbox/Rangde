@@ -91,6 +91,7 @@ export const AI_FUNCTION_DEFINITIONS: GeminiFunctionDeclaration[] = [
           description: 'Array of source-to-target variable mappings',
           items: {
             type: 'object',
+            description: 'A single mapping from source to target variable',
             properties: {
               source: {
                 type: 'string',
@@ -135,6 +136,7 @@ export const AI_FUNCTION_DEFINITIONS: GeminiFunctionDeclaration[] = [
           description: 'Array of collections to create with their configurations',
           items: {
             type: 'object',
+            description: 'A collection configuration',
             properties: {
               name: {
                 type: 'string',
@@ -150,11 +152,12 @@ export const AI_FUNCTION_DEFINITIONS: GeminiFunctionDeclaration[] = [
               },
               swatches: {
                 type: 'array',
-                items: { type: 'string' },
+                items: { type: 'string', description: 'Swatch name' },
                 description: 'Swatches to add from palette',
               },
               layer: {
                 type: 'string',
+                description: 'Layer of the collection',
                 enum: ['Primitive', 'Semantic', 'Theme', 'Component'],
               },
             },
@@ -165,16 +168,19 @@ export const AI_FUNCTION_DEFINITIONS: GeminiFunctionDeclaration[] = [
           description: 'Alias mappings between collections',
           items: {
             type: 'object',
+            description: 'An alias mapping configuration',
             properties: {
-              sourceCollection: { type: 'string' },
-              targetCollection: { type: 'string' },
+              sourceCollection: { type: 'string', description: 'Source collection name' },
+              targetCollection: { type: 'string', description: 'Target collection name' },
               mappings: {
                 type: 'array',
+                description: 'Variable mappings',
                 items: {
                   type: 'object',
+                  description: 'A variable mapping',
                   properties: {
-                    source: { type: 'string' },
-                    target: { type: 'string' },
+                    source: { type: 'string', description: 'Source variable name' },
+                    target: { type: 'string', description: 'Target variable name' },
                   },
                 },
               },

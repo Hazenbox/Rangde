@@ -7,8 +7,34 @@ import type { AIFunctionCall } from '@/types/ai';
 import { CollectionExecutor } from './collection-executor';
 import { AliasExecutor } from './alias-executor';
 import { LayoutExecutor } from './layout-executor';
+import { useCollectionsStore } from '@/store/collections-store';
+import { aiLogger } from '../logger';
 
 export class FunctionExecutor {
+  /**
+   * Capture current state for rollback
+   */
+  private static captureState() {
+    const store = useCollectionsStore.getState();
+    return {
+      collectionNodes: JSON.parse(JSON.stringify(store.collectionNodes)),
+      edges: JSON.parse(JSON.stringify(store.edges)),
+    };
+  }
+
+  /**
+   * Restore state from snapshot
+   */
+  private static restoreState(snapshot: any) {
+    const store = useCollectionsStore.getState();
+    // Use Zustand's setState to restore
+    useCollectionsStore.setState({
+      collectionNodes: snapshot.collectionNodes,
+      edges: snapshot.edges,
+    });
+    aiLogger.info('State rolled back due to function execution failure');
+  }
+
   /**
    * Execute an AI function call
    */
@@ -24,15 +50,15 @@ export class FunctionExecutor {
           break;
 
         case 'createCollection':
-          result = CollectionExecutor.createCollection(args);
+          result = CollectionExecutor.createCollection(args as any);
           break;
 
         case 'addPaletteSwatchesToCollection':
-          result = CollectionExecutor.addPaletteSwatchesToCollection(args);
+          result = CollectionExecutor.addPaletteSwatchesToCollection(args as any);
           break;
 
         case 'createAliasMapping':
-          result = AliasExecutor.createAliasMapping(args);
+          result = AliasExecutor.createAliasMapping(args as any);
           break;
 
         case 'autoLayoutCollections':
@@ -40,7 +66,7 @@ export class FunctionExecutor {
           break;
 
         case 'organizeDesignSystem':
-          result = await this.executeOrganizeDesignSystem(args);
+          result = await this.executeOrganizeDesignSystem(args as any);
           break;
 
         default:
@@ -67,22 +93,40 @@ export class FunctionExecutor {
   }
 
   /**
-   * Execute batch of function calls
+   * Execute batch of function calls with transaction support
    */
   static async executeBatch(functionCalls: AIFunctionCall[]): Promise<AIFunctionCall[]> {
+    // Capture state before execution
+    const stateSnapshot = this.captureState();
     const results: AIFunctionCall[] = [];
+    let hasError = false;
     
-    for (const call of functionCalls) {
-      const result = await this.execute(call);
-      results.push(result);
-      
-      // If a function fails, stop execution
-      if (result.status === 'error') {
-        break;
+    try {
+      for (const call of functionCalls) {
+        const result = await this.execute(call);
+        results.push(result);
+        
+        // If a function fails, mark error and stop execution
+        if (result.status === 'error') {
+          hasError = true;
+          aiLogger.warn(`Function ${call.name} failed:`, result.error);
+          break;
+        }
       }
+      
+      // If any function failed, rollback all changes
+      if (hasError) {
+        aiLogger.warn('Rolling back changes due to function execution failure');
+        this.restoreState(stateSnapshot);
+      }
+      
+      return results;
+    } catch (error) {
+      // Unexpected error - rollback
+      aiLogger.error('Unexpected error during batch execution, rolling back:', error);
+      this.restoreState(stateSnapshot);
+      throw error;
     }
-    
-    return results;
   }
 
   /**

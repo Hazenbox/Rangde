@@ -6,6 +6,7 @@
 import { useCollectionsStore } from '@/store/collections-store';
 import { usePaletteStore } from '@/store/palette-store';
 import { findPalette, getPaletteSwatchHex } from '../context-builder';
+import { aiLogger } from '../logger';
 import type { CollectionLayer } from '@/types/collections';
 
 export class CollectionExecutor {
@@ -96,7 +97,7 @@ export class CollectionExecutor {
         );
         
         if (!color) {
-          console.warn(`Swatch "${swatchName}" not found in palette "${args.palette}"`);
+          aiLogger.warn(`Swatch "${swatchName}" not found in palette "${args.palette}"`);
           continue;
         }
 

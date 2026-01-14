@@ -116,6 +116,14 @@ export function useAIConfig() {
   // Check if rate limit exceeded (only for proxy users)
   const isRateLimited = () => {
     if (!shouldUseProxy()) return false;
+    
+    // Check if window has expired and auto-reset
+    const now = Date.now();
+    if (now > usage.lastReset + AI_CONFIG.rateLimitWindow) {
+      resetUsage();
+      return false;
+    }
+    
     return usage.remainingRequests <= 0;
   };
 

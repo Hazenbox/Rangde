@@ -5,7 +5,7 @@
 
 export const AI_CONFIG = {
   provider: 'gemini' as const,
-  model: 'gemini-1.5-flash',
+  model: 'gemini-1.5-flash-latest',
   
   // Rate limiting
   freeRateLimit: 30, // requests per hour via proxy

@@ -2,17 +2,13 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { Palette, Workflow, HelpCircle, Settings, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Palette, Workflow, HelpCircle } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { AISettingsPanel } from "@/components/settings/ai-settings-panel";
 import { usePaletteStore } from "@/store/palette-store";
 import { cn } from "@/lib/utils";
 
 export function NavigationRail() {
   const { viewMode, setViewMode } = usePaletteStore();
-  const [aiSettingsOpen, setAISettingsOpen] = React.useState(false);
 
   const navItems = [
     {
@@ -56,7 +52,7 @@ export function NavigationRail() {
           return (
             <div
               key={item.id}
-              className="flex flex-col items-center gap-1.5 cursor-pointer"
+              className="flex flex-col items-center gap-1.5 cursor-pointer group"
               onClick={item.onClick}
             >
               <div
@@ -64,7 +60,7 @@ export function NavigationRail() {
                   "w-[52px] h-[30px] rounded-full flex items-center justify-center transition-all duration-200",
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    : "text-muted-foreground group-hover:bg-muted/50 group-hover:text-foreground"
                 )}
               >
                 <item.icon className={cn("h-4 w-4", isActive && "text-foreground")} />
@@ -72,7 +68,7 @@ export function NavigationRail() {
               <span
                 className={cn(
                   "text-[10px] font-medium leading-none tracking-tight text-center transition-colors duration-200",
-                  isActive ? "text-foreground" : "text-muted-foreground"
+                  isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
                 )}
               >
                 {item.label}
@@ -84,27 +80,8 @@ export function NavigationRail() {
 
       {/* Bottom Actions */}
       <div className="flex flex-col items-center justify-end gap-2 w-full px-2 pb-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 rounded-full"
-          onClick={() => setAISettingsOpen(true)}
-          title="AI Settings"
-        >
-          <Sparkles className="h-4 w-4" />
-        </Button>
         <ThemeToggle />
       </div>
-
-      {/* AI Settings Dialog */}
-      <Dialog open={aiSettingsOpen} onOpenChange={setAISettingsOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Settings</DialogTitle>
-          </DialogHeader>
-          <AISettingsPanel />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

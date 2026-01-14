@@ -6,18 +6,34 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AI_CONFIG } from '@/config/ai-config';
 import { AI_FUNCTION_DEFINITIONS } from './function-definitions';
+import { aiLogger } from './logger';
+import { retryWithBackoff } from './retry-utility';
+import { trackTokenUsage } from './token-tracker';
 import type { AIMessage, AIResponse, AIFunctionCall, AIContext } from '@/types/ai';
+
+const HISTORY_STORAGE_KEY = 'ai-conversation-history';
+const MAX_STORED_MESSAGES = 20;
+
+// Fallback models to try if primary model fails
+const MODEL_FALLBACKS = [
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash',
+  'gemini-pro',
+];
 
 export class GeminiService {
   private genAI: GoogleGenerativeAI;
   private model: any;
   private conversationHistory: AIMessage[] = [];
   private abortController: AbortController | null = null;
+  private currentModelName: string;
 
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey);
+    this.currentModelName = AI_CONFIG.model;
+    
     this.model = this.genAI.getGenerativeModel({
-      model: AI_CONFIG.model,
+      model: this.currentModelName,
       generationConfig: {
         temperature: AI_CONFIG.temperature,
         topP: AI_CONFIG.topP,
@@ -25,6 +41,81 @@ export class GeminiService {
         maxOutputTokens: AI_CONFIG.maxTokens,
       },
     });
+    
+    aiLogger.info(`Initialized Gemini with model: ${this.currentModelName}`);
+    
+    // Load conversation history from localStorage
+    this.loadHistory();
+  }
+  
+  /**
+   * Try to initialize with a fallback model
+   */
+  private tryFallbackModel(): boolean {
+    const currentIndex = MODEL_FALLBACKS.indexOf(this.currentModelName);
+    const nextIndex = currentIndex + 1;
+    
+    if (nextIndex < MODEL_FALLBACKS.length) {
+      const fallbackModel = MODEL_FALLBACKS[nextIndex];
+      aiLogger.warn(`Trying fallback model: ${fallbackModel}`);
+      
+      try {
+        this.currentModelName = fallbackModel;
+        this.model = this.genAI.getGenerativeModel({
+          model: fallbackModel,
+          generationConfig: {
+            temperature: AI_CONFIG.temperature,
+            topP: AI_CONFIG.topP,
+            topK: AI_CONFIG.topK,
+            maxOutputTokens: AI_CONFIG.maxTokens,
+          },
+        });
+        aiLogger.info(`Successfully switched to fallback model: ${fallbackModel}`);
+        return true;
+      } catch (error) {
+        aiLogger.error(`Failed to initialize fallback model ${fallbackModel}:`, error);
+        return false;
+      }
+    }
+    
+    aiLogger.error('No more fallback models available');
+    return false;
+  }
+
+  /**
+   * Load conversation history from localStorage
+   */
+  private loadHistory(): void {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          this.conversationHistory = parsed.slice(-MAX_STORED_MESSAGES);
+          aiLogger.debug(`Loaded ${this.conversationHistory.length} messages from history`);
+        }
+      }
+    } catch (error) {
+      aiLogger.warn('Failed to load conversation history:', error);
+    }
+  }
+
+  /**
+   * Save conversation history to localStorage
+   */
+  private saveHistory(): void {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      // Keep only the last MAX_STORED_MESSAGES
+      const toStore = this.conversationHistory.slice(-MAX_STORED_MESSAGES);
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(toStore));
+      aiLogger.debug(`Saved ${toStore.length} messages to history`);
+    } catch (error) {
+      aiLogger.warn('Failed to save conversation history:', error);
+    }
   }
 
   /**
@@ -85,12 +176,15 @@ export class GeminiService {
       
       this.conversationHistory.push(userMsg);
 
+      // Track request tokens
+      trackTokenUsage(userMessage, 'request');
+
       // Create new abort controller for this request
       this.abortController = new AbortController();
       
       // Add logging for debugging
       const startTime = Date.now();
-      console.log('[AI] Request start:', {
+      aiLogger.debug('Request start:', {
         timestamp: new Date().toISOString(),
         userMessage: userMessage.substring(0, 50) + '...',
         historyLength: this.buildChatHistory().length,
@@ -108,19 +202,64 @@ export class GeminiService {
       // Build a simplified message with minimal context
       const messageToSend = userMessage;
       
-      console.log('[AI] Sending message to Gemini...');
+      aiLogger.debug(`Sending message to Gemini using model: ${this.currentModelName}...`);
       
-      // Send with 30 second timeout
-      const result = await this.withTimeout(
-        chat.sendMessage(messageToSend),
-        30000,
-        'AI request took too long. Please try a simpler request or check your connection.'
-      );
+      // Send with retry logic and 30 second timeout
+      let result;
+      try {
+        result = await retryWithBackoff(
+          () => this.withTimeout(
+            chat.sendMessage(messageToSend),
+            30000,
+            'AI request took too long. Please try a simpler request or check your connection.'
+          ),
+          {
+            maxRetries: 2,
+            onRetry: (attempt, error) => {
+              aiLogger.warn(`Retrying Gemini request (attempt ${attempt})`, error.message);
+            },
+          }
+        );
+      } catch (error: any) {
+        // Check if it's a model not found error (404)
+        const errorMessage = error?.message || error?.toString() || '';
+        if (errorMessage.includes('404') || errorMessage.includes('not found') || errorMessage.includes('is not found')) {
+          aiLogger.error(`Model ${this.currentModelName} not found. Attempting fallback...`);
+          
+          // Try fallback model
+          if (this.tryFallbackModel()) {
+            // Retry with fallback model
+            const fallbackChat = this.model.startChat({
+              history: this.buildChatHistory(),
+              tools: [{ functionDeclarations: AI_FUNCTION_DEFINITIONS }],
+            });
+            
+            result = await retryWithBackoff(
+              () => this.withTimeout(
+                fallbackChat.sendMessage(messageToSend),
+                30000,
+                'AI request took too long. Please try a simpler request or check your connection.'
+              ),
+              {
+                maxRetries: 1,
+                onRetry: (attempt, error) => {
+                  aiLogger.warn(`Retrying with fallback model (attempt ${attempt})`, error.message);
+                },
+              }
+            );
+          } else {
+            throw new Error(`All Gemini models failed. Please check your API key and try again. Original error: ${errorMessage}`);
+          }
+        } else {
+          // Re-throw other errors
+          throw error;
+        }
+      }
       
       const duration = Date.now() - startTime;
-      console.log('[AI] Response received:', { duration: `${duration}ms` });
+      aiLogger.debug('Response received:', { duration: `${duration}ms` });
       
-      const response = result.response;
+      const response = (result as any).response;
       
       // Parse response
       const aiMessage: AIMessage = {
@@ -149,7 +288,7 @@ export class GeminiService {
         }
       } catch (e) {
         // No function calls - this is normal for text-only responses
-        console.debug('No function calls in response');
+        aiLogger.debug('No function calls in response');
       }
       
       aiMessage.functionCalls = functionCalls;
@@ -159,13 +298,17 @@ export class GeminiService {
       try {
         text = response.text();
       } catch (e) {
-        console.warn('No text in response:', e);
+        aiLogger.warn('No text in response:', e);
         text = functionCalls.length > 0 ? 'I processed your request.' : 'I received your message.';
       }
       aiMessage.content = text;
 
       // Add to history
       this.conversationHistory.push(aiMessage);
+      this.saveHistory();
+
+      // Track response tokens
+      trackTokenUsage(aiMessage.content, 'response');
 
       return {
         message: aiMessage,
@@ -175,7 +318,7 @@ export class GeminiService {
       // Clean up abort controller
       this.abortController = null;
       
-      console.error('[AI] Error:', {
+      aiLogger.error('Error:', {
         error,
         message: error?.message,
         status: error?.status,
@@ -187,22 +330,28 @@ export class GeminiService {
       let errorMsg = 'I encountered an error processing your request. Please try again.';
       
       if (error?.message) {
-        if (error.message.includes('timeout') || error.message.includes('too long')) {
+        const errorText = error.message.toLowerCase();
+        
+        if (errorText.includes('timeout') || errorText.includes('too long')) {
           errorMsg = error.message; // Use our custom timeout message
-        } else if (error.message.includes('abort')) {
+        } else if (errorText.includes('abort') || errorText.includes('cancelled')) {
           errorMsg = 'Request cancelled.';
-        } else if (error.message.includes('API key') || error.message.includes('invalid')) {
-          errorMsg = 'Invalid API key. Please check your settings.';
-        } else if (error.message.includes('quota') || error.message.includes('429')) {
-          errorMsg = 'Rate limit exceeded. Please try again later.';
-        } else if (error.message.includes('404')) {
-          errorMsg = 'AI model not available. Please check your configuration.';
-        } else if (error.message.includes('400')) {
-          errorMsg = 'Invalid request. Your message may be too complex. Try simplifying it.';
-        } else if (error.message.includes('network') || error.message.includes('fetch')) {
-          errorMsg = 'Network error. Please check your internet connection.';
+        } else if (errorText.includes('404') || errorText.includes('not found') || errorText.includes('is not found')) {
+          errorMsg = `Model not available: ${this.currentModelName}. Please check your API key or try again later.`;
+        } else if (errorText.includes('api key') || errorText.includes('invalid') || errorText.includes('unauthorized') || errorText.includes('403')) {
+          errorMsg = 'Invalid API key. Please check your settings and ensure you have a valid Google AI API key.';
+        } else if (errorText.includes('quota') || errorText.includes('429') || errorText.includes('rate limit')) {
+          errorMsg = 'Rate limit exceeded. Please wait a moment and try again, or add your own API key in settings.';
+        } else if (errorText.includes('400') || errorText.includes('bad request')) {
+          errorMsg = 'Invalid request. Your message may be too complex. Try simplifying it or breaking it into smaller parts.';
+        } else if (errorText.includes('network') || errorText.includes('fetch') || errorText.includes('connection')) {
+          errorMsg = 'Network error. Please check your internet connection and try again.';
+        } else if (errorText.includes('500') || errorText.includes('502') || errorText.includes('503')) {
+          errorMsg = 'Google AI service is temporarily unavailable. Please try again in a moment.';
+        } else if (errorText.includes('all gemini models failed')) {
+          errorMsg = error.message; // Use the detailed message from fallback failure
         } else {
-          errorMsg = `Error: ${error.message}`;
+          errorMsg = `AI Error: ${error.message}`;
         }
       }
       
@@ -229,7 +378,7 @@ export class GeminiService {
     functionResults: AIFunctionCall[]
   ): Promise<AIResponse> {
     try {
-      console.log('[AI] Continuing after function call...');
+      aiLogger.debug('Continuing after function call...');
       const startTime = Date.now();
       
       // Build function response parts correctly
@@ -245,19 +394,27 @@ export class GeminiService {
         tools: [{ functionDeclarations: AI_FUNCTION_DEFINITIONS }],
       });
 
-      // Send function results back to AI with timeout
-      const result = await this.withTimeout(
-        chat.sendMessage({
-          parts: functionResponseParts,
-        }),
-        30000,
-        'AI follow-up request timeout.'
+      // Send function results back to AI with retry and timeout
+      const result = await retryWithBackoff(
+        () => this.withTimeout(
+          chat.sendMessage({
+            parts: functionResponseParts,
+          }),
+          30000,
+          'AI follow-up request timeout.'
+        ),
+        {
+          maxRetries: 2,
+          onRetry: (attempt, error) => {
+            aiLogger.warn(`Retrying follow-up request (attempt ${attempt})`, error.message);
+          },
+        }
       );
       
       const duration = Date.now() - startTime;
-      console.log('[AI] Follow-up response received:', { duration: `${duration}ms` });
+      aiLogger.debug('Follow-up response received:', { duration: `${duration}ms` });
       
-      const response = result.response;
+      const response = (result as any).response;
 
       const aiMessage: AIMessage = {
         id: `msg_${Date.now()}_ai`,
@@ -268,12 +425,16 @@ export class GeminiService {
       };
 
       this.conversationHistory.push(aiMessage);
+      this.saveHistory();
+
+      // Track response tokens
+      trackTokenUsage(aiMessage.content, 'response');
 
       return {
         message: aiMessage,
       };
     } catch (error) {
-      console.error('Gemini continuation error:', error);
+      aiLogger.error('Gemini continuation error:', error);
       
       return {
         message: {
@@ -363,6 +524,10 @@ export class GeminiService {
    */
   clearHistory(): void {
     this.conversationHistory = [];
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(HISTORY_STORAGE_KEY);
+      aiLogger.debug('Cleared conversation history');
+    }
   }
 
   /**
@@ -374,7 +539,7 @@ export class GeminiService {
     }
 
     try {
-      console.log('[AI] Testing API key...');
+      aiLogger.debug('Testing API key...');
       const genAI = new GoogleGenerativeAI(apiKey);
       
       // Try with the configured model
@@ -395,11 +560,11 @@ export class GeminiService {
       const result = await Promise.race([testPromise, timeoutPromise]);
       
       // If we get a response, the key is valid
-      await result.response;
-      console.log('[AI] API key valid');
+      await (result as any).response;
+      aiLogger.debug('API key valid');
       return true;
     } catch (error: any) {
-      console.error('API key validation error:', error);
+      aiLogger.error('API key validation error:', error);
       
       // Provide more specific error messages
       if (error?.message?.includes('API_KEY_INVALID') || error?.message?.includes('invalid')) {

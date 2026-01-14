@@ -125,13 +125,38 @@ git clone https://github.com/Hazenbox/Rangde.git
 cd rang-de-app
 
 # Install dependencies
-npm install
+npm install --legacy-peer-deps
+
+# Set up environment variables (see below)
+cp .env.example .env.local
+# Edit .env.local and add your Gemini API key (optional)
 
 # Start development server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and start creating!
+
+### Environment Setup
+
+Rang De includes an AI assistant powered by Google Gemini. You have two options:
+
+#### Option 1: Free Tier (Default)
+- No setup required
+- Uses backend proxy with rate limiting (30 requests/hour)
+- Shared API key managed by the app
+
+#### Option 2: Use Your Own API Key (Unlimited)
+1. Get a free API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a `.env.local` file in the `rang-de-app` directory:
+   ```bash
+   GEMINI_API_KEY=your_api_key_here
+   ```
+3. Restart the development server
+4. Or add your key in the AI settings panel within the app
+
+**Environment Variables:**
+- `GEMINI_API_KEY` - (Optional) Your Google Gemini API key for backend proxy
 
 ---
 

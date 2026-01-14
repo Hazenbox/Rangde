@@ -935,7 +935,7 @@ export function ScalePreview() {
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between px-4 pt-5 pb-3">
+        <div className="flex items-center justify-between px-4 pt-4 pb-3">
           <div>
             <h2 className="text-[14px] font-semibold">{activePalette.name}</h2>
           </div>

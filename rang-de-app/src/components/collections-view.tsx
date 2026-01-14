@@ -27,10 +27,6 @@ import { autoArrangeCollections } from "@/lib/column-layout";
 import { validateAliasRelationship } from "@/lib/collection-validator";
 import { cn } from "@/lib/utils";
 
-const nodeTypes = {
-  collection: CollectionNode,
-};
-
 function CollectionsViewContent() {
   const {
     collectionNodes,
@@ -43,6 +39,13 @@ function CollectionsViewContent() {
     getCollection,
   } = useCollectionsStore();
 
+  const { isFullscreen, toggleFullscreen } = usePaletteStore();
+
+  // Memoize nodeTypes to prevent React Flow warning about recreating objects
+  const nodeTypes = React.useMemo(() => ({
+    collection: CollectionNode,
+  }), []);
+
   // Auto-arrange handler
   const handleAutoArrange = React.useCallback(() => {
     const arranged = autoArrangeCollections(collectionNodes);
@@ -50,8 +53,6 @@ function CollectionsViewContent() {
       updateCollection(collection.id, { position: collection.position });
     });
   }, [collectionNodes, updateCollection]);
-
-  const { isFullscreen, toggleFullscreen } = usePaletteStore();
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesState] = useEdgesState([]);

@@ -5,10 +5,12 @@ import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { usePaletteStore } from "@/store/palette-store";
 import { useCollectionsStore } from "@/store/collections-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sidebar, SidebarHeader, SidebarContent, SidebarSearch, SidebarTabs, SidebarActionButton } from "@/components/ui/sidebar";
 import { STEPS } from "@/lib/color-utils";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DESIGN_TOKENS } from "@/lib/design-tokens";
 
 interface CollectionPaletteSidebarProps {
   className?: string;
@@ -58,62 +60,34 @@ export function CollectionPaletteSidebar({ className }: CollectionPaletteSidebar
   const activePalette = palettes.find(p => p.id === activePaletteId);
 
   return (
-    <div className={cn("w-[200px] bg-sidebar-background flex flex-col", className)}>
-      {/* Collection Header (when selected) */}
+    <Sidebar width="standard" className={className}>
       {selectedCollection && (
-        <div className="border-b px-2 py-1.5 flex items-center justify-between bg-primary/5">
-          <div className="flex-1 min-w-0">
-            <div className="text-[10px] font-medium truncate">
-              {selectedCollection.icon} {selectedCollection.name}
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 flex-shrink-0"
-            onClick={() => setSelectedNode(null)}
-            title="Dismiss collection"
-          >
-            <X className="h-3 w-3" />
-          </Button>
-        </div>
+        <SidebarHeader
+          title={`${selectedCollection.icon} ${selectedCollection.name}`}
+          actions={
+            <SidebarActionButton
+              icon={<X className={DESIGN_TOKENS.sidebar.button.iconSize} />}
+              onClick={() => setSelectedNode(null)}
+              tooltip="Dismiss collection"
+            />
+          }
+        />
       )}
 
-      {/* Tabs */}
-      <div className="p-2 flex gap-1">
-        <button
-          className={cn(
-            "flex-1 px-2 py-1 text-[11px] font-medium rounded transition-colors",
-            selectedTab === 'palettes'
-              ? "bg-primary text-primary-foreground"
-              : "hover:bg-accent"
-          )}
-          onClick={() => setSelectedTab('palettes')}
-        >
-          Surfaces
-        </button>
-        <button
-          className={cn(
-            "flex-1 px-2 py-1 text-[11px] font-medium rounded transition-colors",
-            selectedTab === 'scales'
-              ? "bg-primary text-primary-foreground"
-              : "hover:bg-accent"
-          )}
-          onClick={() => setSelectedTab('scales')}
-        >
-          Scales
-        </button>
-      </div>
+      <SidebarTabs
+        tabs={[
+          { id: 'palettes', label: 'Surfaces' },
+          { id: 'scales', label: 'Scales' }
+        ]}
+        activeTab={selectedTab}
+        onTabChange={(tabId) => setSelectedTab(tabId as 'palettes' | 'scales')}
+      />
 
-      {/* Search Bar */}
-      <div className="px-2 py-2">
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search..."
-          className="h-6 text-[10px] px-2"
-        />
-      </div>
+      <SidebarSearch
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder="Search..."
+      />
 
       {/* Content */}
       <ScrollArea className="flex-1">
@@ -238,13 +212,6 @@ export function CollectionPaletteSidebar({ className }: CollectionPaletteSidebar
           </div>
         )}
       </ScrollArea>
-
-      {/* Footer hint */}
-      <div className="border-t px-2 py-1 bg-muted/20">
-        <p className="text-[9px] text-muted-foreground text-center">
-          Drag colors onto cells
-        </p>
-      </div>
-    </div>
+    </Sidebar>
   );
 }

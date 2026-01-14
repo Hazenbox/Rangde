@@ -243,7 +243,7 @@ export interface TokensStudioTheme {
 }
 
 export interface TokensStudioExport {
-  [setName: string]: TokensStudioTokenSet | TokensStudioTheme[];
+  [setName: string]: TokensStudioTokenSet | TokensStudioTheme[] | { tokenSetOrder?: string[] } | undefined;
   $themes?: TokensStudioTheme[];
   $metadata?: {
     tokenSetOrder?: string[];

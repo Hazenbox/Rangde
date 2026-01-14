@@ -17,6 +17,8 @@ import "reactflow/dist/style.css";
 import { Plus, Download, X, RefreshCw, Maximize2, Minimize2, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Toolbar, ToolbarButton, ToolbarDivider } from "@/components/ui/toolbar";
+import { MainHeader } from "@/components/ui/main-header";
 import { useCollectionsStore } from "@/store/collections-store";
 import { usePaletteStore } from "@/store/palette-store";
 import { VariableNodeVisualizer } from "@/components/collections/variable-node-visualizer";
@@ -25,10 +27,7 @@ import { ModeSelector } from "@/components/collections/mode-selector";
 import { downloadFigmaExport } from "@/lib/collections-exporter";
 import { autoLayoutVariables } from "@/lib/auto-layout";
 import { cn } from "@/lib/utils";
-
-const nodeTypes = {
-  variable: VariableNodeVisualizer,
-};
+import { DESIGN_TOKENS } from "@/lib/design-tokens";
 
 function CollectionsViewVisualizerContent() {
   const {
@@ -46,6 +45,11 @@ function CollectionsViewVisualizerContent() {
   const [visibleModes, setVisibleModes] = React.useState<string[]>([]);
   const [autoLayoutEnabled, setAutoLayoutEnabled] = React.useState(true);
   const [selectedCollectionFilter, setSelectedCollectionFilter] = React.useState<string | null>(null);
+
+  // Memoize nodeTypes to prevent React Flow warning about recreating objects
+  const nodeTypes = React.useMemo(() => ({
+    variable: VariableNodeVisualizer,
+  }), []);
 
   // Get all unique modes across collections
   const allModes = React.useMemo(() => {
@@ -297,31 +301,21 @@ function CollectionsViewVisualizerContent() {
     <div className="flex h-full w-full overflow-hidden">
       {/* Main Canvas */}
       <div className="flex-1 flex flex-col relative">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 pt-5 pb-3 flex-shrink-0">
-          {/* Left: Title */}
-          <div className="flex items-center gap-4">
-            <h2 className="text-[14px] font-semibold">Collections</h2>
-          </div>
-
-          {/* Right: Stats & Actions */}
-          <div className="flex items-center gap-1.5">
-            <div className="text-xs text-muted-foreground mr-1.5">
-              <span className="font-medium">{collectionNodes.length}</span> collections •{' '}
-              <span className="font-medium">{totalVariables}</span> variables
-            </div>
-            
+        <MainHeader
+          title="Collections"
+          subtitle={`${collectionNodes.length} collections • ${totalVariables} variables`}
+          actions={
             <TooltipProvider delayDuration={0}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0"
+                    className={cn(DESIGN_TOKENS.toolbar.button.size, DESIGN_TOKENS.toolbar.button.shape, "p-0")}
                     onClick={handleExport}
                     disabled={collectionNodes.length === 0}
                   >
-                    <Download className="h-3.5 w-3.5 opacity-50" />
+                    <Download className={DESIGN_TOKENS.toolbar.button.iconSize} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-[10px] px-2 py-1">
@@ -334,13 +328,13 @@ function CollectionsViewVisualizerContent() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0"
+                    className={cn(DESIGN_TOKENS.toolbar.button.size, DESIGN_TOKENS.toolbar.button.shape, "p-0")}
                     onClick={toggleFullscreen}
                   >
                     {isFullscreen ? (
-                      <Minimize2 className="h-3.5 w-3.5 opacity-50" />
+                      <Minimize2 className={DESIGN_TOKENS.toolbar.button.iconSize} />
                     ) : (
-                      <Maximize2 className="h-3.5 w-3.5 opacity-50" />
+                      <Maximize2 className={DESIGN_TOKENS.toolbar.button.iconSize} />
                     )}
                   </Button>
                 </TooltipTrigger>
@@ -349,8 +343,8 @@ function CollectionsViewVisualizerContent() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          </div>
-        </div>
+          }
+        />
 
         {/* React Flow Canvas */}
         <div className="flex-1 relative">

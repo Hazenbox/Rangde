@@ -7,12 +7,12 @@ import { ColorSidebar } from "@/components/color-sidebar";
 import { ScalePreview } from "@/components/scale-preview";
 import { HowItWorks } from "@/components/how-it-works";
 import { CollectionsUnifiedView } from "@/components/collections-unified-view";
-import { FloatingChatPanel } from "@/components/ai-chat/floating-chat-panel";
+import { AIChatSidebar } from "@/components/ai-chat/ai-chat-sidebar";
 import { usePaletteStore } from "@/store/palette-store";
 
 export default function Home() {
   // Access store - Zustand handles hydration automatically
-  const { activePaletteId, viewMode, isFullscreen } = usePaletteStore();
+  const { activePaletteId, viewMode, isFullscreen, isAIChatOpen } = usePaletteStore();
   const [mounted, setMounted] = React.useState(false);
 
   // Ensure hydration is complete before rendering
@@ -33,12 +33,19 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-sidebar-background relative z-10">
-      {/* Navigation Rail - Always visible unless fullscreen */}
-      {!isFullscreen && <NavigationRail />}
+      {/* Conditionally render AI Chat Sidebar OR Navigation Rail + Color Sidebar */}
+      {!isFullscreen && isAIChatOpen ? (
+        <AIChatSidebar />
+      ) : (
+        <>
+          {/* Navigation Rail - Always visible unless fullscreen */}
+          {!isFullscreen && <NavigationRail />}
 
-      {/* Context Sidebar - Dynamic based on view mode */}
-      {!isFullscreen && (viewMode === "palette" || viewMode === "collections") && (
-        <ColorSidebar />
+          {/* Context Sidebar - Dynamic based on view mode */}
+          {!isFullscreen && (viewMode === "palette" || viewMode === "collections" || viewMode === "how-it-works") && (
+            <ColorSidebar />
+          )}
+        </>
       )}
 
       {/* Main area */}
@@ -63,9 +70,6 @@ export default function Home() {
           </div>
         )}
       </main>
-
-      {/* AI Chat Panel - Always available */}
-      <FloatingChatPanel />
     </div>
   );
 }

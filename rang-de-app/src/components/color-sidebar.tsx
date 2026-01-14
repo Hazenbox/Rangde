@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, MoreHorizontal, ChevronRight, ChevronDown, HelpCircle, Search, Workflow, GripVertical, X } from "lucide-react";
+import { Plus, MoreHorizontal, ChevronRight, ChevronDown, HelpCircle, Search, Workflow, GripVertical, X, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,11 +18,13 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sidebar, SidebarHeader, SidebarContent, SidebarSearch, SidebarActionButton, SidebarNavItem } from "@/components/ui/sidebar";
 import { usePaletteStore } from "@/store/palette-store";
 import { useCollectionsStore } from "@/store/collections-store";
 import { CollectionNodeDialog } from "@/components/collections/collection-node-dialog";
 import { STEPS, PaletteSteps, getReadableTextColor, isValidHex, rgbaToHex, sanitizeFigmaName } from "@/lib/color-utils";
 import { cn } from "@/lib/utils";
+import { DESIGN_TOKENS } from "@/lib/design-tokens";
 import {
   DndContext,
   closestCenter,
@@ -425,6 +427,9 @@ export function ColorSidebar() {
     viewMode,
     setViewMode,
     generatedScales,
+    toggleAIChat,
+    howItWorksView,
+    setHowItWorksView,
   } = usePaletteStore();
 
   const { selectedNodeId, collectionNodes, getCollection, setSelectedNode } = useCollectionsStore();
@@ -526,59 +531,91 @@ export function ColorSidebar() {
   const scaleTypes = ['surface', 'high', 'medium', 'low', 'heavy', 'bold', 'boldA11Y', 'minimal'] as const;
   const activePalette = palettes.find(p => p.id === activePaletteId);
 
+  // Render how-it-works mode sidebar
+  if (viewMode === "how-it-works") {
+    return (
+      <Sidebar width="standard">
+        <SidebarHeader title="How It Works" />
+        
+        <SidebarContent noPadding>
+          <div className={cn(DESIGN_TOKENS.sidebar.content.paddingHorizontal, "py-2", DESIGN_TOKENS.spacing.contentSpacing)}>
+            <SidebarNavItem
+              label="Logic"
+              isActive={howItWorksView === "logic"}
+              onClick={() => setHowItWorksView("logic")}
+            />
+            <SidebarNavItem
+              label="Color Source"
+              isActive={howItWorksView === "colors"}
+              onClick={() => setHowItWorksView("colors")}
+            />
+          </div>
+        </SidebarContent>
+      </Sidebar>
+    );
+  }
+
   // Render collections mode sidebar
   if (viewMode === "collections") {
     return (
-      <div className="flex h-full w-60 flex-col bg-sidebar-background relative z-10">
-        {/* Header */}
-        <div className="flex items-center justify-between px-3 pt-5 pb-2 h-12">
-          <h2 className="text-[14px] font-semibold">Collections</h2>
-          
-          {activeTab === "collections" && (
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-7 w-7"
-                    onClick={() => setCollectionDialogOpen(true)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-[10px] px-2 py-1">
-                  Create Collection
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
+      <Sidebar width="standard">
+        <SidebarHeader
+          title="Collections"
+          actions={
+            <>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <SidebarActionButton
+                      icon={<Sparkles className={DESIGN_TOKENS.sidebar.button.iconSize} />}
+                      onClick={toggleAIChat}
+                      tooltip="AI Assistant"
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-[10px] px-2 py-1">
+                    AI Assistant
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {activeTab === "collections" && (
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <SidebarActionButton
+                        icon={<Plus className={DESIGN_TOKENS.sidebar.button.iconSize} />}
+                        onClick={() => setCollectionDialogOpen(true)}
+                        tooltip="Create Collection"
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-[10px] px-2 py-1">
+                      Create Collection
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </>
+          }
+        />
+
+        {/* Search */}
+        <SidebarSearch
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder={activeTab === "collections" ? "Search collections..." : "Search surfaces..."}
+        />
 
         {/* Tabs */}
         <Tabs defaultValue="collections" className="flex-1 flex flex-col" onValueChange={setActiveTab}>
-          <TabsList className="mx-3 mb-2">
+          <TabsList className="mx-3 my-3">
             <TabsTrigger value="collections" className="flex-1 text-[11px]">Collections</TabsTrigger>
             <TabsTrigger value="surfaces" className="flex-1 text-[11px]">Surfaces</TabsTrigger>
           </TabsList>
 
           {/* Collections Tab */}
           <TabsContent value="collections" className="flex-1 flex flex-col m-0 overflow-hidden">
-            <div className="px-3 py-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search collections..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-8 pl-8 text-xs bg-background/50"
-                />
-              </div>
-            </div>
-
             <ScrollArea className="flex-1">
-              <div className="p-2">
+              <div className={cn(DESIGN_TOKENS.sidebar.content.paddingHorizontal, "py-2")}>
                 {collectionNodes.length === 0 ? (
                   <div className="text-center py-8 space-y-2">
                     <p className="text-xs text-muted-foreground">No collections yet</p>
@@ -609,7 +646,6 @@ export function ColorSidebar() {
                             )}
                           >
                             <div className="flex items-center gap-2">
-                              <span>{collection.icon || '📁'}</span>
                               <div className="flex-1 min-w-0">
                                 <div className="font-medium truncate">{collection.name}</div>
                                 <div className="text-[10px] text-muted-foreground">
@@ -643,21 +679,8 @@ export function ColorSidebar() {
 
           {/* Surfaces Tab */}
           <TabsContent value="surfaces" className="flex-1 flex flex-col m-0 overflow-hidden">
-            <div className="px-3 py-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search surfaces..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-8 pl-8 text-xs bg-background/50"
-                />
-              </div>
-            </div>
-
             <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
+          <div className="px-3 py-2 space-y-1">
             {palettes.length === 0 ? (
               <div className="text-[10px] text-muted-foreground text-center py-4">
                 No surfaces available
@@ -779,76 +802,72 @@ export function ColorSidebar() {
           open={collectionDialogOpen}
           onOpenChange={setCollectionDialogOpen}
         />
-      </div>
+      </Sidebar>
     );
   }
 
   // Render palette mode sidebar
   return (
-    <div className="flex h-full w-60 flex-col bg-sidebar-background relative z-10">
-      <div className="flex items-center justify-between px-3 pt-5 pb-3 h-14">
-        <h2 className="text-[14px] font-semibold">Surfaces</h2>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-[10px] px-2 py-1">
-                Create Surface
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Surface</DialogTitle>
-              <DialogDescription>
-                Enter a name for your new color surface.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Surface Name</Label>
-                <Input
-                  id="name"
-                  value={newPaletteName}
-                  onChange={(e) => setNewPaletteName(e.target.value)}
-                  placeholder="e.g., Brand Colors"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleCreate();
-                  }}
-                />
+    <Sidebar width="standard">
+      <SidebarHeader
+        title="Surfaces"
+        actions={
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DialogTrigger asChild>
+                    <SidebarActionButton
+                      icon={<Plus className={DESIGN_TOKENS.sidebar.button.iconSize} />}
+                      onClick={() => {}}
+                      tooltip="Create Surface"
+                    />
+                  </DialogTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-[10px] px-2 py-1">
+                  Create Surface
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Surface</DialogTitle>
+                <DialogDescription>
+                  Enter a name for your new color surface.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Surface Name</Label>
+                  <Input
+                    id="name"
+                    value={newPaletteName}
+                    onChange={(e) => setNewPaletteName(e.target.value)}
+                    placeholder="e.g., Brand Colors"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleCreate();
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleCreate} disabled={!newPaletteName.trim()}>
-                Create Surface
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+              <DialogFooter>
+                <Button onClick={handleCreate} disabled={!newPaletteName.trim()}>
+                  Create Surface
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
-      {/* Search Bar */}
-      <div className="px-3 py-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search surfaces..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 pl-8 text-xs bg-background/50"
-          />
-        </div>
-      </div>
+      <SidebarSearch
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder="Search surfaces..."
+      />
 
       <ScrollArea className="flex-1">
-        <div className="px-2 py-1">
+        <div className={cn(DESIGN_TOKENS.sidebar.content.paddingHorizontal, "py-1")}>
           {palettes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-6 text-center text-sm text-muted-foreground">
               <p className="text-xs">No surfaces yet</p>
@@ -897,6 +916,6 @@ export function ColorSidebar() {
           )}
         </div>
       </ScrollArea>
-    </div>
+    </Sidebar>
   );
 }

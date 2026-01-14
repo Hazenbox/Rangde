@@ -4,8 +4,11 @@ import * as React from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Copy, Check, Search } from "lucide-react";
+import { MainHeader } from "@/components/ui/main-header";
 import { oklchToHex } from "@/lib/color-utils";
 import { cn } from "@/lib/utils";
+import { DESIGN_TOKENS } from "@/lib/design-tokens";
+import { usePaletteStore } from "@/store/palette-store";
 import colorPalettesData from "@/lib/color-palettes.json";
 
 const SCALE_DATA = [
@@ -178,7 +181,7 @@ const TERMINOLOGY_DATA = [
 ];
 
 export function HowItWorks() {
-  const [selectedView, setSelectedView] = React.useState<"logic" | "colors">("logic");
+  const { howItWorksView } = usePaletteStore();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [copiedValues, setCopiedValues] = React.useState<Record<string, boolean>>({});
 
@@ -206,51 +209,14 @@ export function HowItWorks() {
   };
 
   return (
-    <div className="flex h-full">
-      {/* Sidebar */}
-      <div className="flex h-full w-60 flex-col bg-sidebar-background relative z-10">
-        <div className="flex items-center justify-between px-3 pt-5 pb-3 h-14">
-          <h2 className="text-[14px] font-semibold">How It Works</h2>
-        </div>
-        
-        <div className="p-2">
-          <button
-            onClick={() => setSelectedView("logic")}
-            className={cn(
-              "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-              selectedView === "logic"
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "hover:bg-sidebar-accent/50"
-            )}
-          >
-            Logic
-          </button>
-          <button
-            onClick={() => setSelectedView("colors")}
-            className={cn(
-              "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors mt-1",
-              selectedView === "colors"
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "hover:bg-sidebar-accent/50"
-            )}
-          >
-            Color Source
-          </button>
-        </div>
-      </div>
+    <>
+      <MainHeader
+        title={howItWorksView === "logic" ? "Scale Generation Logic" : "Color Palettes"}
+      />
 
-      {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 pt-5 pb-3">
-          <h2 className="text-[14px] font-semibold">
-            {selectedView === "logic" ? "Scale Generation Logic" : "Color Palettes"}
-          </h2>
-        </div>
-
-        {selectedView === "logic" ? (
+      {howItWorksView === "logic" ? (
           <ScrollArea className="h-full">
-            <div className="p-4 space-y-8">
+            <div className={cn(DESIGN_TOKENS.main.content.paddingHorizontal, "py-4", DESIGN_TOKENS.main.content.spacing)}>
           {/* Scale Logic Table */}
           <section>
             <h3 className="text-sm font-semibold mb-3">Scale Generation Rules</h3>
@@ -595,8 +561,7 @@ export function HowItWorks() {
             </div>
           </ScrollArea>
         </div>
-        )}
-      </div>
-    </div>
+      )}
+    </>
   );
 }

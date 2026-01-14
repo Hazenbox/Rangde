@@ -27,8 +27,8 @@ export class LayoutExecutor {
       const positions = calculateHierarchicalPositions(collectionNodes);
       
       // Update each collection's position
-      positions.forEach(({ nodeId, position }) => {
-        updateCollection(nodeId, { position });
+      positions.forEach((value, nodeId) => {
+        updateCollection(nodeId, { position: value.collection });
       });
 
       return {

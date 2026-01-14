@@ -14,7 +14,7 @@ import ReactFlow, {
   MiniMap,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Plus, Download, Maximize2, Minimize2, LayoutGrid, Layers } from "lucide-react";
+import { Download, Maximize2, Minimize2, LayoutGrid, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCollectionsStore } from "@/store/collections-store";
@@ -30,11 +30,6 @@ import { CollectionsEmptyState } from "@/components/collections/empty-state";
 import { ExportPreviewDialog } from "@/components/collections/export-preview-dialog";
 import { calculateHierarchicalPositions } from "@/lib/hierarchical-layout";
 import { cn } from "@/lib/utils";
-
-const nodeTypes = {
-  collection: CollectionNode,
-  variable: VariableNode,
-};
 
 type ViewMode = 'collections' | 'variables' | 'both';
 
@@ -58,6 +53,12 @@ function CollectionsUnifiedViewContent() {
   const [nodeDialogOpen, setNodeDialogOpen] = React.useState(false);
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<ViewMode>('collections');
+
+  // Memoize nodeTypes to prevent React Flow warning about recreating objects
+  const nodeTypes = React.useMemo(() => ({
+    collection: CollectionNode,
+    variable: VariableNode,
+  }), []);
 
   // Auto-arrange handler
   const handleAutoArrange = React.useCallback(() => {
@@ -101,41 +102,65 @@ function CollectionsUnifiedViewContent() {
   // Generate alias edges (variable to variable using handle IDs)
   const getAliasEdges = React.useCallback((): Edge[] => {
     const edges: Edge[] = [];
+    const seenEdgeIds = new Set<string>();
     
     collectionNodes.forEach((targetCollection) => {
       targetCollection.variables.forEach((variable) => {
-        // Check if this variable has an alias
+        // Track unique alias relationships (not per mode)
+        const aliasRelationships = new Map<string, { sourceCollectionId: string; variableId: string }>();
+        
+        // Check if this variable has an alias in any mode
         Object.values(variable.valuesByMode).forEach((value) => {
           if (value.type === 'alias' && value.variableId) {
             const sourceCollectionId = value.collectionId || targetCollection.id;
+            const relationshipKey = `${sourceCollectionId}:${value.variableId}`;
             
-            // Use handle IDs: collectionId-var-variableId-source/target
-            const sourceHandleId = `${sourceCollectionId}-var-${value.variableId}-source`;
-            const targetHandleId = `${targetCollection.id}-var-${variable.id}-target`;
-            
-            // Validate the relationship
-            const sourceCollection = getCollection(sourceCollectionId);
-            const validation = sourceCollection && targetCollection 
-              ? validateAliasRelationship(targetCollection, sourceCollection)
-              : { isValid: true };
-            
-            const isCrossCollection = sourceCollectionId !== targetCollection.id;
-            const edgeColor = validation.isValid ? (isCrossCollection ? '#8b5cf6' : '#6b7280') : '#ef4444';
-            
-            edges.push({
-              id: `alias-${targetCollection.id}:${variable.id}-${sourceCollectionId}:${value.variableId}`,
-              source: sourceCollectionId,
-              target: targetCollection.id,
-              sourceHandle: sourceHandleId,
-              targetHandle: targetHandleId,
-              type: 'smoothstep',
-              animated: isCrossCollection,
-              style: { 
-                stroke: edgeColor,
-                strokeWidth: isCrossCollection ? 2 : 1,
-              },
-            });
+            // Only track unique relationships (one per source variable, not per mode)
+            if (!aliasRelationships.has(relationshipKey)) {
+              aliasRelationships.set(relationshipKey, {
+                sourceCollectionId,
+                variableId: value.variableId,
+              });
+            }
           }
+        });
+        
+        // Create one edge per unique alias relationship
+        aliasRelationships.forEach(({ sourceCollectionId, variableId }) => {
+          const edgeId = `alias-${targetCollection.id}:${variable.id}-${sourceCollectionId}:${variableId}`;
+          
+          // Skip if we've already created this edge
+          if (seenEdgeIds.has(edgeId)) {
+            return;
+          }
+          seenEdgeIds.add(edgeId);
+          
+          // Use handle IDs: collectionId-var-variableId-source/target
+          const sourceHandleId = `${sourceCollectionId}-var-${variableId}-source`;
+          const targetHandleId = `${targetCollection.id}-var-${variable.id}-target`;
+          
+          // Validate the relationship
+          const sourceCollection = getCollection(sourceCollectionId);
+          const validation = sourceCollection && targetCollection 
+            ? validateAliasRelationship(targetCollection, sourceCollection)
+            : { isValid: true };
+          
+          const isCrossCollection = sourceCollectionId !== targetCollection.id;
+          const edgeColor = validation.isValid ? (isCrossCollection ? '#8b5cf6' : '#6b7280') : '#ef4444';
+          
+          edges.push({
+            id: edgeId,
+            source: sourceCollectionId,
+            target: targetCollection.id,
+            sourceHandle: sourceHandleId,
+            targetHandle: targetHandleId,
+            type: 'smoothstep',
+            animated: isCrossCollection,
+            style: { 
+              stroke: edgeColor,
+              strokeWidth: isCrossCollection ? 2 : 1,
+            },
+          });
         });
       });
     });
@@ -156,7 +181,17 @@ function CollectionsUnifiedViewContent() {
 
     const aliasEdges = getAliasEdges();
     
-    setEdges([...manualEdges, ...aliasEdges]);
+    // Combine and deduplicate edges by ID to prevent React key conflicts
+    const allEdges = [...manualEdges, ...aliasEdges];
+    const uniqueEdgesMap = new Map<string, Edge>();
+    
+    allEdges.forEach((edge) => {
+      if (!uniqueEdgesMap.has(edge.id)) {
+        uniqueEdgesMap.set(edge.id, edge);
+      }
+    });
+    
+    setEdges(Array.from(uniqueEdgesMap.values()));
   }, [storeEdges, collectionNodes, getAliasEdges]);
 
   // Handle node position changes
@@ -367,33 +402,15 @@ function CollectionsUnifiedViewContent() {
       {/* Main Canvas */}
       <div className="flex-1 relative">
         {/* Toolbar */}
-        <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-background/95 backdrop-blur-sm border rounded-md p-1.5 shadow-lg">
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-background/95 backdrop-blur-sm border rounded-full px-1.5 py-1 shadow-lg">
           <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-[11px] px-2"
-                  onClick={() => setNodeDialogOpen(true)}
-                >
-                  <Plus className="h-3 w-3 mr-1.5" />
-                  New
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p className="text-[10px]">Create collection (Ctrl+N)</p>
-              </TooltipContent>
-            </Tooltip>
-
-            <div className="w-px h-5 bg-border" />
 
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0"
+                  className="h-7 w-7 p-0 rounded-full"
                   onClick={handleAutoArrange}
                   disabled={collectionNodes.length === 0}
                 >
@@ -410,7 +427,7 @@ function CollectionsUnifiedViewContent() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0"
+                  className="h-7 w-7 p-0 rounded-full"
                   onClick={toggleFullscreen}
                 >
                   {isFullscreen ? (
@@ -430,7 +447,7 @@ function CollectionsUnifiedViewContent() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0"
+                  className="h-7 w-7 p-0 rounded-full"
                   onClick={handleExport}
                   disabled={collectionNodes.length === 0}
                 >

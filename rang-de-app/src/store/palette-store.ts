@@ -50,6 +50,8 @@ interface PaletteState {
   generatedScales: GeneratedScalesMap | null;
   viewMode: ViewMode;
   isFullscreen: boolean;
+  isAIChatOpen: boolean;
+  howItWorksView: "logic" | "colors";
   
   // Actions
   createPalette: (name: string) => void;
@@ -63,6 +65,9 @@ interface PaletteState {
   getActivePalette: () => Palette | null;
   setViewMode: (mode: ViewMode) => void;
   toggleFullscreen: () => void;
+  toggleAIChat: () => void;
+  setAIChatOpen: (open: boolean) => void;
+  setHowItWorksView: (view: "logic" | "colors") => void;
 }
 
 function generateId(): string {
@@ -128,6 +133,8 @@ export const usePaletteStore = create<PaletteState>()(
           : null,
       viewMode: "palette" as ViewMode,
       isFullscreen: false,
+      isAIChatOpen: false,
+      howItWorksView: "logic",
 
       createPalette: (name: string) => {
         const newPalette: Palette = {
@@ -250,6 +257,18 @@ export const usePaletteStore = create<PaletteState>()(
 
       toggleFullscreen: () => {
         set((state) => ({ isFullscreen: !state.isFullscreen }));
+      },
+
+      toggleAIChat: () => {
+        set((state) => ({ isAIChatOpen: !state.isAIChatOpen }));
+      },
+
+      setAIChatOpen: (open: boolean) => {
+        set({ isAIChatOpen: open });
+      },
+
+      setHowItWorksView: (view: "logic" | "colors") => {
+        set({ howItWorksView: view });
       }
     };
     },
