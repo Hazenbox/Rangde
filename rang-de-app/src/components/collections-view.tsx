@@ -14,7 +14,7 @@ import ReactFlow, {
   MiniMap,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Plus, Download, Maximize2, Minimize2 } from "lucide-react";
+import { Plus, Download, Maximize2, Minimize2, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCollectionsStore } from "@/store/collections-store";
@@ -23,6 +23,8 @@ import { CollectionNode } from "@/components/collections/collection-node";
 import { CollectionNodeDialog } from "@/components/collections/collection-node-dialog";
 import { CollectionDetailsPanel } from "@/components/collections/collection-details-panel";
 import { downloadFigmaExport } from "@/lib/collections-exporter";
+import { autoArrangeCollections } from "@/lib/column-layout";
+import { validateAliasRelationship } from "@/lib/collection-validator";
 import { cn } from "@/lib/utils";
 
 const nodeTypes = {
@@ -40,6 +42,14 @@ function CollectionsViewContent() {
     setSelectedNode,
     getCollection,
   } = useCollectionsStore();
+
+  // Auto-arrange handler
+  const handleAutoArrange = React.useCallback(() => {
+    const arranged = autoArrangeCollections(collectionNodes);
+    arranged.forEach(collection => {
+      updateCollection(collection.id, { position: collection.position });
+    });
+  }, [collectionNodes, updateCollection]);
 
   const { isFullscreen, toggleFullscreen } = usePaletteStore();
 
@@ -120,14 +130,32 @@ function CollectionsViewContent() {
     [updateCollection]
   );
 
-  // Handle edge creation
+  // Handle edge creation with layer validation
   const handleConnect = React.useCallback(
     (connection: Connection) => {
       if (connection.source && connection.target) {
+        // Validate layer relationship
+        const sourceCollection = getCollection(connection.source);
+        const targetCollection = getCollection(connection.target);
+        
+        if (sourceCollection && targetCollection) {
+          const validation = validateAliasRelationship(sourceCollection, targetCollection);
+          
+          if (!validation.isValid) {
+            alert(`Cannot create connection: ${validation.error}`);
+            return;
+          }
+          
+          if (validation.warning) {
+            const confirmed = window.confirm(`Warning: ${validation.warning}\n\nContinue anyway?`);
+            if (!confirmed) return;
+          }
+        }
+        
         createEdge(connection.source, connection.target);
       }
     },
-    [createEdge]
+    [createEdge, getCollection]
   );
 
   // Handle edge deletion
@@ -267,6 +295,23 @@ function CollectionsViewContent() {
             </Tooltip>
 
             <div className="w-px h-5 bg-border" />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={handleAutoArrange}
+                  disabled={collectionNodes.length === 0}
+                >
+                  <LayoutGrid className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-[10px]">Auto-arrange by layer</p>
+              </TooltipContent>
+            </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>

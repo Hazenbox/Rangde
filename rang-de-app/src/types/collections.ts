@@ -4,6 +4,15 @@
 export type NodeType = 'collection';
 
 /**
+ * Collection Layer - Three-layer semantic token architecture
+ */
+export enum CollectionLayer {
+  PRIMITIVE = 'primitive',
+  SEMANTIC = 'semantic',
+  THEME = 'theme'
+}
+
+/**
  * Position for React Flow nodes
  */
 export interface NodePosition {
@@ -77,6 +86,8 @@ export interface CollectionNode {
   name: string;
   icon?: string;
   position: NodePosition;
+  layer?: CollectionLayer; // NEW: Semantic layer (Primitive, Semantic, Theme)
+  isParent?: boolean; // NEW: Mark this collection as parent (only one can be parent)
   
   // Collection-specific data
   modes: VariableMode[]; // List of modes (Light, Dark, etc.)
@@ -166,7 +177,7 @@ export interface FigmaVariable {
 }
 
 /**
- * Figma Export Format
+ * Figma Export Format (Internal API format - NOT importable via plugins)
  */
 export interface FigmaExport {
   id: string;
@@ -174,4 +185,67 @@ export interface FigmaExport {
   modes: Record<string, string>; // modeId → modeName
   variableIds: string[];
   variables: FigmaVariable[];
+}
+
+/**
+ * Export Format Types
+ */
+export enum ExportFormat {
+  DTCG = 'dtcg', // Design Tokens Community Group format (W3C standard)
+  TOKENS_STUDIO = 'tokens-studio', // Tokens Studio for Figma format
+  FIGMA_API = 'figma-api' // Figma internal API format (legacy, not importable)
+}
+
+/**
+ * DTCG (Design Tokens Community Group) Format Types
+ * Standard format for design tokens - works with "Figma Design Token Importer" plugin
+ */
+
+export interface DTCGToken {
+  $type: string; // e.g., "color", "dimension", "fontFamily"
+  $value: string | DTCGReference; // Hex color or reference to another token
+  $description?: string;
+}
+
+export interface DTCGReference {
+  $ref: string; // e.g., "{colors.primary.black}"
+}
+
+export interface DTCGGroup {
+  [key: string]: DTCGToken | DTCGGroup;
+}
+
+export interface DTCGExport {
+  [key: string]: DTCGToken | DTCGGroup;
+}
+
+/**
+ * Tokens Studio Format Types
+ * Popular format used by Tokens Studio plugin for Figma
+ */
+
+export interface TokensStudioToken {
+  value: string; // Hex color or reference like "{colors.primary}"
+  type: string; // e.g., "color", "sizing", "fontFamily"
+  description?: string;
+}
+
+export interface TokensStudioTokenSet {
+  [key: string]: TokensStudioToken | TokensStudioTokenSet;
+}
+
+export interface TokensStudioTheme {
+  id: string;
+  name: string;
+  selectedTokenSets: Record<string, 'enabled' | 'disabled' | 'source'>;
+  $figmaStyleReferences?: Record<string, string>;
+  $figmaVariableReferences?: Record<string, string>;
+}
+
+export interface TokensStudioExport {
+  [setName: string]: TokensStudioTokenSet | TokensStudioTheme[];
+  $themes?: TokensStudioTheme[];
+  $metadata?: {
+    tokenSetOrder?: string[];
+  };
 }

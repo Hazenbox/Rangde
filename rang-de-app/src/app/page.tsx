@@ -6,7 +6,8 @@ import { NavigationRail } from "@/components/navigation-rail";
 import { ColorSidebar } from "@/components/color-sidebar";
 import { ScalePreview } from "@/components/scale-preview";
 import { HowItWorks } from "@/components/how-it-works";
-import { CollectionsViewVisualizer } from "@/components/collections-view-visualizer";
+import { CollectionsUnifiedView } from "@/components/collections-unified-view";
+import { FloatingChatPanel } from "@/components/ai-chat/floating-chat-panel";
 import { usePaletteStore } from "@/store/palette-store";
 
 export default function Home() {
@@ -43,7 +44,7 @@ export default function Home() {
       {/* Main area */}
       <main className={`flex flex-1 flex-col overflow-hidden bg-background relative z-10 ${isFullscreen ? 'm-0 rounded-none' : 'm-2 rounded-[16px]'}`}>
         {viewMode === "collections" ? (
-          <CollectionsViewVisualizer />
+          <CollectionsUnifiedView />
         ) : viewMode === "how-it-works" ? (
           <HowItWorks />
         ) : activePaletteId ? (
@@ -62,6 +63,9 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* AI Chat Panel - Always available */}
+      <FloatingChatPanel />
     </div>
   );
 }

@@ -2,14 +2,17 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { Palette, Workflow, HelpCircle, Settings } from "lucide-react";
+import { Palette, Workflow, HelpCircle, Settings, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AISettingsPanel } from "@/components/settings/ai-settings-panel";
 import { usePaletteStore } from "@/store/palette-store";
 import { cn } from "@/lib/utils";
 
 export function NavigationRail() {
   const { viewMode, setViewMode } = usePaletteStore();
+  const [aiSettingsOpen, setAISettingsOpen] = React.useState(false);
 
   const navItems = [
     {
@@ -81,8 +84,27 @@ export function NavigationRail() {
 
       {/* Bottom Actions */}
       <div className="flex flex-col items-center justify-end gap-2 w-full px-2 pb-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-full"
+          onClick={() => setAISettingsOpen(true)}
+          title="AI Settings"
+        >
+          <Sparkles className="h-4 w-4" />
+        </Button>
         <ThemeToggle />
       </div>
+
+      {/* AI Settings Dialog */}
+      <Dialog open={aiSettingsOpen} onOpenChange={setAISettingsOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Settings</DialogTitle>
+          </DialogHeader>
+          <AISettingsPanel />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

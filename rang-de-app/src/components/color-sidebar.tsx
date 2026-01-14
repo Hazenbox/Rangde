@@ -17,8 +17,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePaletteStore } from "@/store/palette-store";
 import { useCollectionsStore } from "@/store/collections-store";
+import { CollectionNodeDialog } from "@/components/collections/collection-node-dialog";
 import { STEPS, PaletteSteps, getReadableTextColor, isValidHex, rgbaToHex, sanitizeFigmaName } from "@/lib/color-utils";
 import { cn } from "@/lib/utils";
 import {
@@ -425,7 +427,7 @@ export function ColorSidebar() {
     generatedScales,
   } = usePaletteStore();
 
-  const { selectedNodeId, getCollection, setSelectedNode } = useCollectionsStore();
+  const { selectedNodeId, collectionNodes, getCollection, setSelectedNode } = useCollectionsStore();
   const selectedCollection = selectedNodeId ? getCollection(selectedNodeId) : null;
 
   const [newPaletteName, setNewPaletteName] = React.useState("");
@@ -438,6 +440,8 @@ export function ColorSidebar() {
   const [expandedPalettes, setExpandedPalettes] = React.useState<Set<string>>(
     new Set(palettes.map(p => p.id))
   );
+  const [collectionDialogOpen, setCollectionDialogOpen] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState("collections");
 
   const handleCreate = () => {
     if (newPaletteName.trim()) {
@@ -527,92 +531,132 @@ export function ColorSidebar() {
     return (
       <div className="flex h-full w-60 flex-col bg-sidebar-background relative z-10">
         {/* Header */}
-        <div className="flex items-center justify-between px-3 pt-5 pb-3 h-14">
+        <div className="flex items-center justify-between px-3 pt-5 pb-2 h-12">
           <h2 className="text-[14px] font-semibold">Collections</h2>
           
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          {activeTab === "collections" && (
             <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </DialogTrigger>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-7 w-7"
+                    onClick={() => setCollectionDialogOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-[10px] px-2 py-1">
-                  Create Surface
+                  Create Collection
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New Surface</DialogTitle>
-                <DialogDescription>
-                  Enter a name for your new color surface.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Surface Name</Label>
-                  <Input
-                    id="name"
-                    value={newPaletteName}
-                    onChange={(e) => setNewPaletteName(e.target.value)}
-                    placeholder="e.g., Brand Colors"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleCreate();
-                    }}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleCreate} disabled={!newPaletteName.trim()}>
-                  Create Surface
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          )}
         </div>
 
-        {/* Collection Header with Dismiss */}
-        {selectedCollection && (
-          <div className="flex items-center justify-between px-3 py-2 bg-muted/30 border-b">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <div className="text-xs font-medium truncate">
-                  {selectedCollection.icon} {selectedCollection.name}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 flex-shrink-0 ml-auto"
-                  onClick={() => setSelectedNode(null)}
-                  title="Dismiss collection"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+        {/* Tabs */}
+        <Tabs defaultValue="collections" className="flex-1 flex flex-col" onValueChange={setActiveTab}>
+          <TabsList className="mx-3 mb-2">
+            <TabsTrigger value="collections" className="flex-1 text-[11px]">Collections</TabsTrigger>
+            <TabsTrigger value="surfaces" className="flex-1 text-[11px]">Surfaces</TabsTrigger>
+          </TabsList>
+
+          {/* Collections Tab */}
+          <TabsContent value="collections" className="flex-1 flex flex-col m-0 overflow-hidden">
+            <div className="px-3 py-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search collections..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 pl-8 text-xs bg-background/50"
+                />
               </div>
             </div>
-          </div>
-        )}
 
-        {/* Search Bar - matching global nav style */}
-        <div className="px-3 py-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search surfaces..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 pl-8 text-xs bg-background/50"
-            />
-          </div>
-        </div>
+            <ScrollArea className="flex-1">
+              <div className="p-2">
+                {collectionNodes.length === 0 ? (
+                  <div className="text-center py-8 space-y-2">
+                    <p className="text-xs text-muted-foreground">No collections yet</p>
+                    <Button 
+                      size="sm" 
+                      className="h-7 text-[11px]"
+                      onClick={() => setCollectionDialogOpen(true)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Create Collection
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {collectionNodes
+                      .filter(c => !searchQuery.trim() || c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map(collection => {
+                        const isSelected = selectedCollection?.id === collection.id;
+                        return (
+                          <button
+                            key={collection.id}
+                            onClick={() => setSelectedNode(collection.id)}
+                            className={cn(
+                              "w-full text-left px-2 py-2 rounded-md text-xs transition-colors",
+                              isSelected 
+                                ? "bg-primary/10 text-primary font-medium" 
+                                : "hover:bg-muted/50"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>{collection.icon || '📁'}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium truncate">{collection.name}</div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  {collection.variables.length} variables · {collection.modes.length} modes
+                                </div>
+                              </div>
+                              {collection.layer && (
+                                <div 
+                                  className="px-1 py-0.5 text-[9px] font-semibold rounded"
+                                  style={{
+                                    backgroundColor: collection.layer === 'primitive' ? '#3b82f620' 
+                                      : collection.layer === 'semantic' ? '#8b5cf620'
+                                      : '#ec489920',
+                                    color: collection.layer === 'primitive' ? '#3b82f6'
+                                      : collection.layer === 'semantic' ? '#8b5cf6'
+                                      : '#ec4899'
+                                  }}
+                                >
+                                  {collection.layer.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
 
-        {/* Content */}
-        <ScrollArea className="flex-1">
+          {/* Surfaces Tab */}
+          <TabsContent value="surfaces" className="flex-1 flex flex-col m-0 overflow-hidden">
+            <div className="px-3 py-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search surfaces..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 pl-8 text-xs bg-background/50"
+                />
+              </div>
+            </div>
+
+            <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
             {palettes.length === 0 ? (
               <div className="text-[10px] text-muted-foreground text-center py-4">
@@ -726,13 +770,20 @@ export function ColorSidebar() {
               </>
             )}
           </div>
-        </ScrollArea>
-
-        {/* Bottom - Only Theme Toggle */}
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+        
+        {/* Collection Creation Dialog */}
+        <CollectionNodeDialog
+          open={collectionDialogOpen}
+          onOpenChange={setCollectionDialogOpen}
+        />
       </div>
     );
   }
 
+  // Render palette mode sidebar
   return (
     <div className="flex h-full w-60 flex-col bg-sidebar-background relative z-10">
       <div className="flex items-center justify-between px-3 pt-5 pb-3 h-14">

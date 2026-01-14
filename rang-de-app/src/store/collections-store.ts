@@ -11,6 +11,7 @@ import {
   Variable,
   VariableValue,
   DroppedColor,
+  CollectionLayer,
 } from "@/types/collections";
 
 // Safe storage adapter that handles SSR
@@ -43,7 +44,7 @@ const safeStorage = {
 
 interface CollectionsStore extends CollectionsState {
   // Collection CRUD
-  createCollection: (name: string, position: NodePosition, icon?: string, metadata?: CollectionMetadata) => CollectionNode;
+  createCollection: (name: string, position: NodePosition, layer?: CollectionLayer, icon?: string, metadata?: CollectionMetadata) => CollectionNode;
   updateCollection: (collectionId: string, updates: Partial<Omit<CollectionNode, 'id' | 'createdAt'>>) => void;
   deleteCollection: (collectionId: string) => void;
   getCollection: (collectionId: string) => CollectionNode | undefined;
@@ -54,7 +55,7 @@ interface CollectionsStore extends CollectionsState {
   deleteMode: (collectionId: string, modeId: string) => void;
 
   // Variable management
-  addVariable: (collectionId: string, name: string, description?: string) => Variable | null;
+  addVariable: (collectionId: string, name: string, description?: string, hex?: string) => Variable | null;
   updateVariable: (collectionId: string, variableId: string, updates: Partial<Omit<Variable, 'id' | 'valuesByMode'>>) => void;
   deleteVariable: (collectionId: string, variableId: string) => void;
   setVariableValue: (collectionId: string, variableId: string, modeId: string, value: VariableValue) => void;
@@ -79,6 +80,10 @@ interface CollectionsStore extends CollectionsState {
   // Selection
   setSelectedNode: (nodeId: string | null) => void;
 
+  // Parent collection management
+  setParentCollection: (collectionId: string | null) => void;
+  getParentCollection: () => CollectionNode | null;
+
   // Utility
   clearAll: () => void;
 }
@@ -100,13 +105,14 @@ export const useCollectionsStore = create<CollectionsStore>()(
       selectedEdgeId: null,
 
       // Collection CRUD
-      createCollection: (name, position, icon, metadata) => {
+      createCollection: (name, position, layer, icon, metadata) => {
         const newCollection: CollectionNode = {
           id: generateId('collection'),
           nodeType: 'collection',
           name,
           icon,
           position,
+          layer, // NEW: Add layer support
           modes: [], // Start with no modes - skeleton collection
           variables: [],
           metadata,
@@ -215,14 +221,15 @@ export const useCollectionsStore = create<CollectionsStore>()(
       },
 
       // Variable management
-      addVariable: (collectionId, name, description) => {
+      addVariable: (collectionId, name, description, hex) => {
         const collection = get().getCollection(collectionId);
         if (!collection) return null;
 
-        // Initialize valuesByMode with empty color for each mode
+        // Initialize valuesByMode with provided color or default black
+        const defaultHex = hex || '#000000';
         const valuesByMode: Record<string, VariableValue> = {};
         collection.modes.forEach((mode) => {
-          valuesByMode[mode.id] = { type: 'color', hex: '#000000' };
+          valuesByMode[mode.id] = { type: 'color', hex: defaultHex };
         });
 
         const newVariable: Variable = {
@@ -431,6 +438,21 @@ export const useCollectionsStore = create<CollectionsStore>()(
       // Selection
       setSelectedNode: (nodeId) => {
         set({ selectedNodeId: nodeId, selectedEdgeId: null });
+      },
+
+      // Parent collection management
+      setParentCollection: (collectionId) => {
+        set((state) => ({
+          collectionNodes: state.collectionNodes.map((node) => ({
+            ...node,
+            isParent: node.id === collectionId ? true : false,
+            updatedAt: node.id === collectionId ? Date.now() : node.updatedAt,
+          })),
+        }));
+      },
+
+      getParentCollection: () => {
+        return get().collectionNodes.find((node) => node.isParent) || null;
       },
 
       // Utility
