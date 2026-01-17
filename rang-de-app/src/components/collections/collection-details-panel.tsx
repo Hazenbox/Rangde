@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X, Plus, Trash2, Palette as PaletteIcon, Type } from "lucide-react";
+import { X, Plus, Trash2, Palette as PaletteIcon, Type, AlertTriangle, AlertCircle } from "lucide-react";
 import { useCollectionsStore } from "@/store/collections-store";
 import { usePaletteStore } from "@/store/palette-store";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { VariableValue } from "@/types/collections";
+import { validateCollectionVariables, getLayerLabel, getLayerColor } from "@/lib/collection-validator";
 
 interface CollectionDetailsPanelProps {
   collectionId: string;
@@ -40,6 +41,19 @@ export function CollectionDetailsPanel({ collectionId, onClose }: CollectionDeta
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const variableInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Validate collection - MUST be before early return to satisfy Rules of Hooks
+  const validation = React.useMemo(() => {
+    if (!collection) return { state: 'valid' as const, errors: [], warnings: [] };
+    return validateCollectionVariables(collection, collectionNodes);
+  }, [collection, collectionNodes]);
+
+  // Filter variables based on search - MUST be before early return
+  const filteredVariables = React.useMemo(() => {
+    if (!collection || !searchQuery.trim()) return collection?.variables || [];
+    const query = searchQuery.toLowerCase();
+    return collection.variables.filter(v => v.name.toLowerCase().includes(query));
+  }, [collection, searchQuery]);
 
   // Keyboard shortcuts
   React.useEffect(() => {
@@ -79,13 +93,6 @@ export function CollectionDetailsPanel({ collectionId, onClose }: CollectionDeta
   if (!collection) {
     return null;
   }
-
-  // Filter variables based on search
-  const filteredVariables = React.useMemo(() => {
-    if (!searchQuery.trim()) return collection.variables;
-    const query = searchQuery.toLowerCase();
-    return collection.variables.filter(v => v.name.toLowerCase().includes(query));
-  }, [collection.variables, searchQuery]);
 
   const handleAddMode = () => {
     if (newModeName.trim()) {
@@ -298,9 +305,22 @@ export function CollectionDetailsPanel({ collectionId, onClose }: CollectionDeta
       {/* Header */}
       <div className="border-b px-3 py-2 flex items-center justify-between">
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold truncate">
-            {collection.icon} {collection.name}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold truncate">
+              {collection.icon} {collection.name}
+            </h3>
+            {collection.layer && (
+              <span
+                className="px-1.5 py-0.5 text-[9px] font-semibold rounded"
+                style={{
+                  backgroundColor: `${getLayerColor(collection.layer)}20`,
+                  color: getLayerColor(collection.layer),
+                }}
+              >
+                {getLayerLabel(collection.layer)}
+              </span>
+            )}
+          </div>
           <p className="text-[10px] text-muted-foreground">
             {collection.modes.length} modes · {collection.variables.length} variables
           </p>
@@ -309,6 +329,40 @@ export function CollectionDetailsPanel({ collectionId, onClose }: CollectionDeta
           <X className="h-3 w-3" />
         </Button>
       </div>
+
+      {/* Validation Alerts */}
+      {(validation.errors.length > 0 || validation.warnings.length > 0) && (
+        <div className="border-b px-3 py-2 space-y-1">
+          {validation.errors.length > 0 && (
+            <div className="flex items-start gap-2 p-2 rounded bg-destructive/10 text-destructive">
+              <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 text-[10px] space-y-0.5">
+                <div className="font-semibold">{validation.errors.length} Error(s)</div>
+                {validation.errors.slice(0, 3).map((error, idx) => (
+                  <div key={idx} className="opacity-90">• {error}</div>
+                ))}
+                {validation.errors.length > 3 && (
+                  <div className="opacity-70">...and {validation.errors.length - 3} more</div>
+                )}
+              </div>
+            </div>
+          )}
+          {validation.warnings.length > 0 && (
+            <div className="flex items-start gap-2 p-2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-500">
+              <AlertTriangle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 text-[10px] space-y-0.5">
+                <div className="font-semibold">{validation.warnings.length} Warning(s)</div>
+                {validation.warnings.slice(0, 2).map((warning, idx) => (
+                  <div key={idx} className="opacity-90">• {warning}</div>
+                ))}
+                {validation.warnings.length > 2 && (
+                  <div className="opacity-70">...and {validation.warnings.length - 2} more</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modes bar with search */}
       <div className="border-b px-3 py-2 space-y-2">

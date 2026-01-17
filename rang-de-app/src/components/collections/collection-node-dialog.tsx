@@ -5,7 +5,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { HelpCircle } from "lucide-react";
 import { useCollectionsStore } from "@/store/collections-store";
+import { CollectionLayer } from "@/types/collections";
+import { getLayerLabel, getLayerDescription, getLayerColor } from "@/lib/collection-validator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CollectionNodeDialogProps {
   open: boolean;
@@ -26,15 +30,18 @@ export function CollectionNodeDialog({ open, onOpenChange, collectionId, initial
 
   const [name, setName] = React.useState(existingCollection?.name || "");
   const [icon, setIcon] = React.useState(existingCollection?.icon || "");
+  const [layer, setLayer] = React.useState<CollectionLayer | undefined>(existingCollection?.layer);
 
   React.useEffect(() => {
     if (open) {
       if (existingCollection) {
         setName(existingCollection.name);
         setIcon(existingCollection.icon || "");
+        setLayer(existingCollection.layer);
       } else {
         setName("");
         setIcon("");
+        setLayer(undefined);
       }
     }
   }, [open, existingCollection]);
@@ -47,6 +54,7 @@ export function CollectionNodeDialog({ open, onOpenChange, collectionId, initial
       updateCollection(collectionId, {
         name: name.trim(),
         icon: icon || undefined,
+        layer,
       });
     } else {
       // Create new collection
@@ -66,7 +74,7 @@ export function CollectionNodeDialog({ open, onOpenChange, collectionId, initial
         };
       }
       
-      createCollection(name.trim(), position, icon || undefined);
+      createCollection(name.trim(), position, layer, icon || undefined);
     }
 
     onOpenChange(false);
@@ -112,6 +120,57 @@ export function CollectionNodeDialog({ open, onOpenChange, collectionId, initial
               maxLength={2}
               className="h-8 text-[12px]"
             />
+          </div>
+
+          {/* Layer Selector */}
+          <div className="grid gap-1.5">
+            <div className="flex items-center gap-2">
+              <Label className="text-[11px]">Layer (optional)</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-xs">
+                    <div className="space-y-2 text-[10px]">
+                      <p className="font-semibold">Three-Layer Architecture:</p>
+                      <p><span className="text-blue-500">Primitive:</span> Base colors (#FF0000)</p>
+                      <p><span className="text-purple-500">Semantic:</span> Intent tokens (danger → red)</p>
+                      <p><span className="text-pink-500">Theme:</span> Brand tokens (button → danger)</p>
+                      <p className="pt-1 border-t">Aliases flow: Primitive → Semantic → Theme</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { value: CollectionLayer.PRIMITIVE, label: 'Primitive' },
+                { value: CollectionLayer.SEMANTIC, label: 'Semantic' },
+                { value: CollectionLayer.THEME, label: 'Theme' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setLayer(layer === option.value ? undefined : option.value)}
+                  className={`h-8 px-2 text-[11px] rounded-md border transition-colors ${
+                    layer === option.value
+                      ? 'border-2 font-medium'
+                      : 'border hover:bg-accent'
+                  }`}
+                  style={{
+                    borderColor: layer === option.value ? getLayerColor(option.value) : undefined,
+                    color: layer === option.value ? getLayerColor(option.value) : undefined,
+                  }}
+                  title={getLayerDescription(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <div className="text-[10px] text-muted-foreground">
+              {layer ? getLayerDescription(layer) : 'No layer - flexible aliasing'}
+            </div>
           </div>
 
           <div className="text-[10px] text-muted-foreground">

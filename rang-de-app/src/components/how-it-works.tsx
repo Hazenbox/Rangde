@@ -2,6 +2,14 @@
 
 import * as React from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Copy, Check, Search } from "lucide-react";
+import { MainHeader } from "@/components/ui/main-header";
+import { oklchToHex } from "@/lib/color-utils";
+import { cn } from "@/lib/utils";
+import { DESIGN_TOKENS } from "@/lib/design-tokens";
+import { usePaletteStore } from "@/store/palette-store";
+import colorPalettesData from "@/lib/color-palettes.json";
 
 const SCALE_DATA = [
   {
@@ -43,10 +51,10 @@ const SCALE_DATA = [
     name: "Low",
     contrastTarget: "≥ 4.5:1",
     logic: [
-      "Uses the contrasting color with transparency to achieve exactly 4.5:1 contrast",
-      "Calculates the minimum alpha needed to meet WCAG AA for normal text",
-      "If full opacity contrast < 4.5:1, searches for a palette step that meets the requirement",
-      "Ensures accessibility for body text while maintaining subtlety",
+      "Uses the High contrasting color (step 200 or 2500)",
+      "Starts at 1% opacity and increases until contrast ≥ 4.5:1",
+      "Finds the lowest integer percentage (e.g., 57% -> 4.49 fail, 58% -> 4.51 pass)",
+      "If full opacity contrast < 4.5:1, searches for a palette step instead",
     ],
     exampleLight: "Surface 2400 → Low = step 200 at 56% opacity (4.5:1 contrast)",
     exampleDark: "Surface 200 → Low = step 2500 at 55% opacity (4.5:1 contrast)",
@@ -94,12 +102,13 @@ const SCALE_DATA = [
     contrastTarget: "Low (decorative)",
     logic: [
       "Provides subtle, low-contrast color for decorative elements",
-      "Steps 200-1100: Add 2 steps (e.g., 200 → 400)",
-      "Steps 1200-2500: Subtract 2 steps (e.g., 2400 → 2200)",
+      "Dark CC (High = 200): Subtract 200 from surface (e.g., 1500 → 1300)",
+      "Light CC (High = 2500): Add 200 to surface (e.g., 400 → 600)",
+      "Always moves away from the contrasting color by 2 steps",
       "Not intended for text; use for borders, dividers, backgrounds",
     ],
-    exampleLight: "Surface 2400 → Minimal = 2200",
-    exampleDark: "Surface 200 → Minimal = 400",
+    exampleLight: "Surface 2400 (CC=200) → Minimal = 2200 (2400 - 200)",
+    exampleDark: "Surface 200 (CC=2500) → Minimal = 400 (200 + 200)",
   },
 ];
 
@@ -172,20 +181,42 @@ const TERMINOLOGY_DATA = [
 ];
 
 export function HowItWorks() {
-  return (
-    <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <div>
-          <h2 className="font-semibold">Color Scale Logic</h2>
-          <p className="text-xs text-muted-foreground">
-            How each scale is generated based on WCAG accessibility guidelines
-          </p>
-        </div>
-      </div>
+  const { howItWorksView } = usePaletteStore();
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [copiedValues, setCopiedValues] = React.useState<Record<string, boolean>>({});
 
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-8">
+  const handleCopy = async (value: string, key: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = value;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      setCopiedValues({ ...copiedValues, [key]: true });
+      setTimeout(() => {
+        setCopiedValues({ ...copiedValues, [key]: false });
+      }, 1500);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  return (
+    <>
+      <MainHeader
+        title={howItWorksView === "logic" ? "Scale Generation Logic" : "Color Palettes"}
+      />
+
+      {howItWorksView === "logic" ? (
+          <ScrollArea className="h-full">
+            <div className={cn(DESIGN_TOKENS.main.content.paddingHorizontal, "py-4", DESIGN_TOKENS.main.content.spacing)}>
           {/* Scale Logic Table */}
           <section>
             <h3 className="text-sm font-semibold mb-3">Scale Generation Rules</h3>
@@ -200,8 +231,8 @@ export function HowItWorks() {
                 </thead>
                 <tbody>
                   {SCALE_DATA.map((scale, index) => (
-                    <tr 
-                      key={scale.name} 
+                    <tr
+                      key={scale.name}
                       className={index % 2 === 0 ? "bg-background" : "bg-muted/30"}
                     >
                       <td className="px-3 py-2 align-top">
@@ -246,17 +277,16 @@ export function HowItWorks() {
                 </thead>
                 <tbody>
                   {WCAG_DATA.map((item, index) => (
-                    <tr 
-                      key={`${item.type}-${item.level}`} 
+                    <tr
+                      key={`${item.type}-${item.level}`}
                       className={index % 2 === 0 ? "bg-background" : "bg-muted/30"}
                     >
                       <td className="px-3 py-2 font-medium">{item.type}</td>
                       <td className="px-3 py-2">
-                        <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                          item.level === "AA" 
-                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" 
-                            : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                        }`}>
+                        <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${item.level === "AA"
+                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                          : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                          }`}>
                           {item.level}
                         </span>
                       </td>
@@ -282,8 +312,8 @@ export function HowItWorks() {
                 </thead>
                 <tbody>
                   {TERMINOLOGY_DATA.map((item, index) => (
-                    <tr 
-                      key={item.term} 
+                    <tr
+                      key={item.term}
                       className={index % 2 === 0 ? "bg-background" : "bg-muted/30"}
                     >
                       <td className="px-3 py-2 font-medium">{item.term}</td>
@@ -333,16 +363,205 @@ export function HowItWorks() {
               <div className="rounded-lg border p-3 space-y-2">
                 <h4 className="text-xs font-semibold">Minimal Step Mapping</h4>
                 <ul className="text-[11px] text-muted-foreground space-y-1">
-                  <li>• Steps 200-1100: +2 steps (200→400, 600→800, etc.)</li>
-                  <li>• Steps 1200-2500: -2 steps (1200→1000, 2500→2300, etc.)</li>
-                  <li>• Always moves toward middle of the scale</li>
+                  <li>• Dark CC (High = 200): Surface - 200 (e.g., 1500→1300)</li>
+                  <li>• Light CC (High = 2500): Surface + 200 (e.g., 400→600)</li>
+                  <li>• Always moves away from the contrasting color</li>
                   <li>• Used for subtle, decorative elements only</li>
                 </ul>
               </div>
             </div>
           </section>
+            </div>
+          </ScrollArea>
+        ) : (
+          <div className="flex flex-col flex-1 overflow-hidden">
+            {/* Sticky Search Bar */}
+            <div className="p-4 pb-2 bg-background sticky top-0 z-10">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Source: v1010.json"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 h-9"
+                />
+              </div>
+            </div>
+
+            <ScrollArea className="flex-1">
+            <div className="p-4">
+              {/* Color Palettes Table */}
+              {(() => {
+                const filteredResults = Object.entries(colorPalettesData)
+                  .map(([paletteName, paletteData]) => {
+                  const baseStep = paletteData.base;
+                  const displayName = paletteName
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+
+                  // Get all steps (200-2500, excluding 100)
+                  const steps = [
+                    200, 300, 400, 500, 600, 700, 800, 900, 1000,
+                    1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800,
+                    1900, 2000, 2100, 2200, 2300, 2400, 2500
+                  ];
+
+                  // Filter steps based on search query
+                  const filteredSteps = steps.filter((step) => {
+                    if (!searchQuery) return true;
+                    
+                    const stepKey = step.toString() as keyof typeof paletteData;
+                    const oklchValue = paletteData[stepKey];
+                    if (!oklchValue || typeof oklchValue !== 'string') return false;
+                    
+                    const hexValue = oklchToHex(oklchValue);
+                    const query = searchQuery.toLowerCase();
+                    
+                    // Search in step number
+                    if (step.toString().includes(query)) return true;
+                    
+                    // Search in OKLCH value
+                    if (oklchValue.toLowerCase().includes(query)) return true;
+                    
+                    // Search in HEX value (case-insensitive)
+                    if (hexValue.toLowerCase().includes(query)) return true;
+                    
+                    return false;
+                  });
+
+                  // Check if palette name or base step matches search
+                  const paletteMatchesSearch = !searchQuery || 
+                    displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    baseStep.includes(searchQuery);
+
+                  // Only show palette if it matches or has matching steps
+                  if (searchQuery && !paletteMatchesSearch && filteredSteps.length === 0) {
+                    return null;
+                  }
+
+                  return { paletteName, paletteData, baseStep, displayName, filteredSteps, steps };
+                })
+                .filter(Boolean) as Array<{ paletteName: string; paletteData: any; baseStep: string; displayName: string; filteredSteps: number[]; steps: number[] }>;
+
+                if (searchQuery && filteredResults.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <p className="text-sm text-muted-foreground">No results found for "{searchQuery}"</p>
+                      <p className="text-xs text-muted-foreground mt-1">Try searching by palette name, step number, OKLCH, or HEX value</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-6">
+                    {filteredResults.map(({ paletteName, paletteData, baseStep, displayName, filteredSteps, steps }) => (
+                    <div key={paletteName}>
+                      {/* Palette Header */}
+                      <div className="flex items-baseline gap-3 mb-2">
+                        <h3 className="text-sm font-semibold">{displayName}</h3>
+                        <span className="text-xs text-muted-foreground">
+                          Base: <span className="font-mono font-medium text-foreground">{baseStep}</span>
+                        </span>
+                      </div>
+
+                      {/* Color Table */}
+                      <div className="overflow-x-auto rounded-lg border">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b bg-muted/50">
+                              <th className="px-3 py-2 text-left font-semibold w-16">Step</th>
+                              <th className="px-3 py-2 text-left font-semibold w-20">Swatch</th>
+                              <th className="px-3 py-2 text-left font-semibold">OKLCH</th>
+                              <th className="px-3 py-2 text-left font-semibold w-24">HEX</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(searchQuery ? filteredSteps : steps).map((step, index) => {
+                              const stepKey = step.toString() as keyof typeof paletteData;
+                              const oklchValue = paletteData[stepKey];
+                              if (!oklchValue || typeof oklchValue !== 'string') return null;
+                              
+                              const hexValue = oklchToHex(oklchValue);
+                              const isBase = step.toString() === baseStep;
+                              const oklchKey = `${paletteName}-${step}-oklch`;
+                              const hexKey = `${paletteName}-${step}-hex`;
+
+                              return (
+                                <tr
+                                  key={step}
+                                  className={`${index % 2 === 0 ? "bg-background" : "bg-muted/30"} ${
+                                    isBase ? "font-semibold" : ""
+                                  }`}
+                                >
+                                  <td className="px-3 py-2">
+                                    {step}
+                                    {isBase && (
+                                      <span className="ml-1 text-[9px] text-primary">★</span>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <div
+                                      className="w-12 h-6 rounded border border-border"
+                                      style={{ backgroundColor: hexValue }}
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <div className="flex items-center gap-1.5">
+                                      <code className="font-mono text-[10px] text-muted-foreground">
+                                        {oklchValue}
+                                      </code>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCopy(oklchValue, oklchKey);
+                                        }}
+                                        className="opacity-50 hover:opacity-100 transition-opacity"
+                                      >
+                                        {copiedValues[oklchKey] ? (
+                                          <Check className="h-3 w-3" />
+                                        ) : (
+                                          <Copy className="h-3 w-3" />
+                                        )}
+                                      </button>
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <div className="flex items-center gap-1.5">
+                                      <code className="font-mono">
+                                        {hexValue}
+                                      </code>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCopy(hexValue, hexKey);
+                                        }}
+                                        className="opacity-50 hover:opacity-100 transition-opacity"
+                                      >
+                                        {copiedValues[hexKey] ? (
+                                          <Check className="h-3 w-3" />
+                                        ) : (
+                                          <Copy className="h-3 w-3" />
+                                        )}
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+                  </div>
+                );
+              })()}
+            </div>
+          </ScrollArea>
         </div>
-      </ScrollArea>
-    </div>
+      )}
+    </>
   );
 }

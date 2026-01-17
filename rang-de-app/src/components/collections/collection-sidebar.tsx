@@ -40,7 +40,7 @@ export function CollectionSidebar({
   };
 
   return (
-    <div className={cn("w-64 border-r bg-background flex flex-col", className)}>
+    <div className={cn("w-64 bg-background flex flex-col", className)}>
       {/* Header */}
       <div className="border-b px-3 py-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Collections</h3>

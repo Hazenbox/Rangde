@@ -50,11 +50,14 @@ interface PaletteState {
   generatedScales: GeneratedScalesMap | null;
   viewMode: ViewMode;
   isFullscreen: boolean;
+  isAIChatOpen: boolean;
+  howItWorksView: "logic" | "colors";
   
   // Actions
   createPalette: (name: string) => void;
   deletePalette: (id: string) => void;
   renamePalette: (id: string, name: string) => void;
+  reorderPalettes: (startIndex: number, endIndex: number) => void;
   setActivePalette: (id: string) => void;
   updatePaletteStep: (paletteId: string, step: Step, hex: string) => void;
   updatePrimaryStep: (paletteId: string, step: Step) => void;
@@ -62,6 +65,9 @@ interface PaletteState {
   getActivePalette: () => Palette | null;
   setViewMode: (mode: ViewMode) => void;
   toggleFullscreen: () => void;
+  toggleAIChat: () => void;
+  setAIChatOpen: (open: boolean) => void;
+  setHowItWorksView: (view: "logic" | "colors") => void;
 }
 
 function generateId(): string {
@@ -127,6 +133,8 @@ export const usePaletteStore = create<PaletteState>()(
           : null,
       viewMode: "palette" as ViewMode,
       isFullscreen: false,
+      isAIChatOpen: false,
+      howItWorksView: "logic",
 
       createPalette: (name: string) => {
         const newPalette: Palette = {
@@ -167,6 +175,15 @@ export const usePaletteStore = create<PaletteState>()(
             p.id === id ? { ...p, name } : p
           )
         }));
+      },
+
+      reorderPalettes: (startIndex: number, endIndex: number) => {
+        set((state) => {
+          const newPalettes = Array.from(state.palettes);
+          const [removed] = newPalettes.splice(startIndex, 1);
+          newPalettes.splice(endIndex, 0, removed);
+          return { palettes: newPalettes };
+        });
       },
 
       setActivePalette: (id: string) => {
@@ -240,6 +257,18 @@ export const usePaletteStore = create<PaletteState>()(
 
       toggleFullscreen: () => {
         set((state) => ({ isFullscreen: !state.isFullscreen }));
+      },
+
+      toggleAIChat: () => {
+        set((state) => ({ isAIChatOpen: !state.isAIChatOpen }));
+      },
+
+      setAIChatOpen: (open: boolean) => {
+        set({ isAIChatOpen: open });
+      },
+
+      setHowItWorksView: (view: "logic" | "colors") => {
+        set({ howItWorksView: view });
       }
     };
     },

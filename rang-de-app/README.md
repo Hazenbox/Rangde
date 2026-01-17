@@ -95,7 +95,7 @@ Uses the darkest (step 200) or lightest (step 2500) color for maximum readabilit
 A middle ground between maximum contrast and minimum readable contrast. Great for secondary text and balanced designs.
 
 ### **Low** - Minimum Readable
-Calculated to achieve exactly 4.5:1 contrast ratio (WCAG AA standard). The most subtle readable option.
+Uses the High contrasting color and finds the lowest opacity (alpha) that achieves a contrast ratio of at least 4.5:1. Checks from 1% upwards until the threshold is met.
 
 ### **Bold** - Strong Emphasis
 Starts from your primary step and ensures at least 3.0:1 contrast. Perfect for headings and emphasis.
@@ -107,7 +107,7 @@ Like Bold, but ensures 4.5:1 contrast for full accessibility compliance. Ideal f
 Context-aware scale that provides enhanced contrast based on surface darkness. Adapts intelligently.
 
 ### **Minimal** - Subtle Variation
-A gentle shift from the surface color (±200 steps). Perfect for subtle UI elements and borders.
+Moves away from the contrasting color by 200 steps. Dark surfaces add 200, light surfaces subtract 200. Perfect for subtle UI elements and borders.
 
 ---
 
@@ -125,13 +125,38 @@ git clone https://github.com/Hazenbox/Rangde.git
 cd rang-de-app
 
 # Install dependencies
-npm install
+npm install --legacy-peer-deps
+
+# Set up environment variables (see below)
+cp .env.example .env.local
+# Edit .env.local and add your Gemini API key (optional)
 
 # Start development server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and start creating!
+
+### Environment Setup
+
+Rang De includes an AI assistant powered by Google Gemini. You have two options:
+
+#### Option 1: Free Tier (Default)
+- No setup required
+- Uses backend proxy with rate limiting (30 requests/hour)
+- Shared API key managed by the app
+
+#### Option 2: Use Your Own API Key (Unlimited)
+1. Get a free API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a `.env.local` file in the `rang-de-app` directory:
+   ```bash
+   GEMINI_API_KEY=your_api_key_here
+   ```
+3. Restart the development server
+4. Or add your key in the AI settings panel within the app
+
+**Environment Variables:**
+- `GEMINI_API_KEY` - (Optional) Your Google Gemini API key for backend proxy
 
 ---
 
